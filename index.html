@@ -158,6 +158,38 @@
         white-space: nowrap; /* Prevent wrapping on smaller screens */
       }
       /* --- End Game Title Style --- */
+
+      /* --- Style for High Score Message --- */
+      #highScoreMessage {
+        position: absolute;
+        top: 20%; /* Position vertically - Changed from 40% to 20% */
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 2.5em; /* Large font size */
+        font-weight: bold;
+        color: #00ff00; /* Bright green color */
+        text-shadow: 0 0 5px #fff, 0 0 10px #00ff00, 0 0 15px #00ff00; /* Glowing effect */
+        z-index: 101; /* Above game UI but potentially below overlays if needed */
+        pointer-events: none;
+        display: none; /* Initially hidden */
+        animation: fadeInOut 3s ease-in-out forwards; /* Animation for display */
+      }
+
+      @keyframes fadeInOut {
+        0% {
+          opacity: 0;
+        }
+        20% {
+          opacity: 1;
+        } /* Fade in quickly */
+        80% {
+          opacity: 1;
+        } /* Stay visible */
+        100% {
+          opacity: 0;
+        } /* Fade out */
+      }
+      /* --- End High Score Message Style --- */
     </style>
   </head>
   <body>
@@ -186,6 +218,9 @@
       <div id="score">Score: 0</div>
       <div id="leaderboard">Loading scores...</div>
       <div id="currentUsername">User: -</div>
+      <!-- Add the High Score Message Element -->
+      <div id="highScoreMessage">New High Score!</div>
+      <!-- End High Score Message Element -->
       <div id="gameOver">
         <h1>GAME OVER</h1>
         <div id="finalScore">Final Score: 0</div>

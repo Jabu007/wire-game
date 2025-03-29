@@ -1,5 +1,6 @@
 import { Game } from "./engine/Game.js";
-import { fetchTopHighScores } from "./lib/supabaseClient.js";
+import { fetchLeaderboard, fetchUserHighScore } from "./lib/supabaseClient.js";
+import { getElements } from "./config/constants.js";
 
 console.log("index.js: Script loaded.");
 
@@ -19,7 +20,10 @@ console.log("index.js: Start button element:", startButton);
 console.log("index.js: Leaderboard element:", leaderboardElement); // Check if found
 console.log("index.js: Current Username element:", currentUsernameElement); // Check if found
 
-let gameInstance = null; // Hold the game instance
+let currentGame = null;
+let currentUsername = localStorage.getItem(USERNAME_STORAGE_KEY) || "";
+
+const elements = getElements();
 
 // --- Leaderboard Update Function ---
 const updateLeaderboard = async () => {
@@ -30,7 +34,7 @@ const updateLeaderboard = async () => {
   leaderboardElement.innerHTML = "Loading scores..."; // Show loading state
 
   try {
-    const topScores = await fetchTopHighScores(5); // Fetch top 5 scores
+    const topScores = await fetchLeaderboard(5); // Fetch top 5 scores
 
     if (topScores && topScores.length > 0) {
       let leaderboardHTML = "<strong>Top Scores:</strong><br>"; // Start with a title
@@ -53,79 +57,49 @@ const updateLeaderboard = async () => {
 // --- End Leaderboard Update Function ---
 
 // --- Function to start the game ---
-const handleStartGame = () => {
-  console.log("handleStartGame");
-  const username = usernameInput.value.trim();
-
+const handleStartGame = async () => {
+  const username = elements.usernameInput.value.trim();
   if (!username) {
-    usernameError.textContent = "Username cannot be empty.";
-    usernameInput.style.borderColor = "#ff4444"; // Indicate error
+    elements.usernameError.textContent = "Please enter a username.";
     return;
   }
-
-  // Basic validation (you can add more complex rules)
   if (username.length > 20) {
-    usernameError.textContent = "Username max 20 characters.";
-    usernameInput.style.borderColor = "#ff4444";
+    elements.usernameError.textContent = "Username max 20 characters.";
     return;
   }
 
-  // Clear error and reset style
-  usernameError.textContent = "";
-  usernameInput.style.borderColor = "#00ffff";
+  elements.usernameError.textContent = ""; // Clear error
+  currentUsername = username;
+  localStorage.setItem(USERNAME_STORAGE_KEY, currentUsername); // Save username
 
-  // --- Save username to localStorage on successful start ---
+  // --- Fetch user's high score BEFORE starting ---
+  let userHighScore = 0;
   try {
-    localStorage.setItem(USERNAME_STORAGE_KEY, username);
-    console.log(`Username "${username}" saved to localStorage.`);
+    userHighScore = await fetchUserHighScore(currentUsername);
   } catch (error) {
-    console.error("Error saving username to localStorage:", error);
-    // Non-critical error, game can still proceed
+    console.error("Failed to fetch user high score:", error);
+    // Proceed with high score 0 if fetch fails
   }
-  // --- End save username ---
+  // --- End fetch ---
 
-  console.log(`Starting game for user: ${username}`);
+  elements.usernameOverlay.style.display = "none"; // Hide overlay
+  elements.gameUiElement.style.display = "block"; // Show game UI
+  elements.currentUsernameElement.textContent = `User: ${currentUsername}`;
 
-  // --- Update username display ---
-  if (currentUsernameElement) {
-    // Sanitize display
-    const safeUsername = username.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    // Remove the "User: " prefix
-    currentUsernameElement.textContent = safeUsername;
-  } else {
-    console.warn("Current username display element not found.");
+  // Dispose previous game if exists
+  if (currentGame) {
+    currentGame.dispose();
   }
-  // --- End update username display ---
 
-  // Hide overlay and show game UI
-  usernameOverlay.style.display = "none";
-  gameUi.style.display = "block"; // Show the game UI
+  // Create and start a new game instance, passing the high score
+  currentGame = new Game(
+    currentUsername,
+    userHighScore, // Pass the fetched high score
+    updateLeaderboard // Pass the callback for when score is saved
+  );
 
-  // --- Update leaderboard when game UI becomes visible ---
+  // Initial leaderboard load
   updateLeaderboard();
-  // ---
-
-  // Check for WebGL support before starting
-  if (!window.WebGLRenderingContext) {
-    console.error("WebGL is not supported or not enabled.");
-    // Display error within the game area if possible, or fallback
-    document.body.innerHTML = `<div style="color: orange; font-family: sans-serif; padding: 20px;">
-      Sorry, WebGL is required to run this game. Please check your browser settings or update your browser/graphics drivers.
-    </div>`;
-    return; // Stop execution
-  }
-
-  console.log("WebGL available. Initializing game...");
-  // Create and start the game, passing the username AND the callback
-  if (!gameInstance) {
-    // Pass updateLeaderboard as the callback
-    gameInstance = new Game(username, updateLeaderboard);
-    window.game = gameInstance; // Optional: for debugging
-  } else {
-    // If restarting after game over, just reset
-    gameInstance.reset(username); // Reset logic handles restart
-    // Leaderboard will be updated via the callback when the *next* game ends
-  }
 };
 
 // --- Add event listeners ---

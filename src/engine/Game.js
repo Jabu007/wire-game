@@ -24,9 +24,10 @@ import {
 } from "../config/constants.js";
 
 export class Game {
-  constructor(username, onScoreSavedCallback) {
+  constructor(username, userHighScore, onScoreSavedCallback) {
     console.log("Wireframe World Runner: Initializing game...");
     this.username = username; // Store the username
+    this.userHighScore = userHighScore; // Store the user's personal high score
     this.onScoreSaved = onScoreSavedCallback; // Store the callback
 
     this.score = 0;
@@ -39,6 +40,8 @@ export class Game {
     this.currentLanes = [...LANES_INITIAL];
     this.laneExpansionLevel = 0;
     this.isSavingScore = false; // Flag to prevent multiple saves
+    this.highScoreMessageShownThisRun = false; // Flag for high score message
+    this.highScoreMessageTimeout = null; // Timeout ID for hiding the message
 
     // Get UI elements using the utility function
     const elements = getElements();
@@ -46,18 +49,19 @@ export class Game {
     this.gameOverElement = elements.gameOverElement;
     this.finalScoreElement = elements.finalScoreElement;
     this.instructionsElement = elements.instructionsElement;
+    this.highScoreMessageElement = elements.highScoreMessageElement; // Get the new element
 
     // Basic validation for elements
     if (
       !this.scoreElement ||
       !this.gameOverElement ||
       !this.finalScoreElement ||
-      !this.instructionsElement
+      !this.instructionsElement ||
+      !this.highScoreMessageElement // Validate the new element
     ) {
       console.error("One or more UI elements not found!");
-      // Handle this error appropriately, maybe show an error message
       this.showError("UI Error: Could not find essential elements.");
-      return; // Stop initialization if UI is broken
+      return;
     }
 
     try {
@@ -73,8 +77,8 @@ export class Game {
       // Setup input handler
       this.input = new InputHandler(this);
 
-      // Start the game
-      this.reset(this.username);
+      // Start the game (pass username and high score to reset)
+      this.reset(this.username, this.userHighScore);
 
       console.log("Game initialization complete.");
     } catch (error) {
@@ -91,16 +95,26 @@ export class Game {
     }
   }
 
-  reset(username = this.username) {
+  reset(username = this.username, userHighScore = this.userHighScore) {
     // Stop animation if running
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
     }
 
-    console.log(`Resetting game for user: ${username}`);
-    this.username = username; // Ensure username is current
-    this.isSavingScore = false; // Reset saving flag
+    console.log(
+      `Resetting game for user: ${username} (High Score: ${userHighScore})`
+    );
+    this.username = username;
+    this.userHighScore = userHighScore; // Update high score on reset if needed
+    this.isSavingScore = false;
+    this.highScoreMessageShownThisRun = false; // Reset the flag
+
+    // Clear any existing high score message timeout
+    if (this.highScoreMessageTimeout) {
+      clearTimeout(this.highScoreMessageTimeout);
+      this.highScoreMessageTimeout = null;
+    }
 
     // Reset game state
     this.score = 0;
@@ -129,6 +143,8 @@ export class Game {
     if (this.gameOverElement) this.gameOverElement.style.display = "none";
     if (this.instructionsElement)
       this.instructionsElement.style.display = "block";
+    if (this.highScoreMessageElement)
+      this.highScoreMessageElement.style.display = "none"; // Ensure message is hidden
 
     // Restart animation
     this.clock.start();
@@ -147,7 +163,7 @@ export class Game {
 
       // Update game logic only if the game is active
       if (!this.gameOver) {
-        this.updateGameLogic(deltaTime); // Renamed internal update method
+        this.updateGameLogic(deltaTime);
       }
 
       // Render the scene using the composer
@@ -210,6 +226,34 @@ export class Game {
     if (this.scoreElement) {
       this.scoreElement.textContent = `Score: ${this.score}`;
     }
+
+    // --- Check for New High Score ---
+    if (
+      this.score > this.userHighScore &&
+      this.userHighScore > 0 && // Only show if there was a previous high score > 0
+      !this.highScoreMessageShownThisRun
+    ) {
+      this.highScoreMessageShownThisRun = true;
+      console.log("New High Score achieved!");
+      if (this.highScoreMessageElement) {
+        this.highScoreMessageElement.style.display = "block";
+        // Clear previous timeout just in case
+        if (this.highScoreMessageTimeout) {
+          clearTimeout(this.highScoreMessageTimeout);
+        }
+        // Set timeout to hide the message after 3 seconds
+        this.highScoreMessageTimeout = setTimeout(() => {
+          if (this.highScoreMessageElement) {
+            // Check again in case game ended/reset quickly
+            this.highScoreMessageElement.style.display = "none";
+          }
+          this.highScoreMessageTimeout = null; // Clear timeout ID
+        }, 3000); // 3000 milliseconds = 3 seconds
+      }
+      // Update the high score tracked in this run so message doesn't reappear
+      // (Alternatively, could update this.userHighScore immediately, but let's wait for save)
+    }
+    // --- End High Score Check ---
   }
 
   updateDifficulty(deltaTime) {
@@ -279,30 +323,44 @@ export class Game {
       this.instructionsElement.style.display = "none"; // Hide instructions on game over
     }
 
-    // Save score (ensure it only runs once)
-    if (!this.isSavingScore) {
+    // Clear high score message timeout if game ends while it's showing
+    if (this.highScoreMessageTimeout) {
+      clearTimeout(this.highScoreMessageTimeout);
+      this.highScoreMessageTimeout = null;
+      // Optionally hide the message immediately on game over
+      if (this.highScoreMessageElement) {
+        this.highScoreMessageElement.style.display = "none";
+      }
+    }
+
+    // Save score (only if current score is higher than fetched high score)
+    if (!this.isSavingScore && this.score > this.userHighScore) {
       this.isSavingScore = true;
       console.log(
-        `Attempting to save score ${this.score} for user ${this.username}`
+        `Attempting to save NEW high score ${this.score} for user ${this.username}`
       );
       saveHighScore(this.username, this.score)
         .then(() => {
           console.log("Score saving process completed.");
+          // Update the locally stored high score for the next run
+          this.userHighScore = this.score;
           if (this.onScoreSaved) {
-            this.onScoreSaved(); // Trigger leaderboard update via callback
+            this.onScoreSaved();
           }
         })
         .catch((err) => {
-          // Log detailed error from Supabase if available
           console.error(
             "Error during saveHighScore promise:",
             err.message || err
           );
         })
         .finally(() => {
-          // Reset flag even if saving failed, allowing retry on next game over
           this.isSavingScore = false;
         });
+    } else if (this.score <= this.userHighScore) {
+      console.log(
+        `Score ${this.score} is not higher than high score ${this.userHighScore}. Not saving.`
+      );
     }
   }
 
@@ -331,6 +389,11 @@ export class Game {
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
+    }
+    // Clear high score message timeout on dispose
+    if (this.highScoreMessageTimeout) {
+      clearTimeout(this.highScoreMessageTimeout);
+      this.highScoreMessageTimeout = null;
     }
 
     if (this.player) this.player.dispose();

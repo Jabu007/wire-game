@@ -101,12 +101,20 @@ export const BLOOM_PARAMS = {
   threshold: 0.8,
 };
 
-// DOM Elements
+// Utility function to get common DOM elements
 export const getElements = () => ({
   scoreElement: document.getElementById("score"),
   gameOverElement: document.getElementById("gameOver"),
   finalScoreElement: document.getElementById("finalScore"),
   instructionsElement: document.getElementById("instructions"),
+  usernameOverlay: document.getElementById("usernameOverlay"),
+  usernameInput: document.getElementById("usernameInput"),
+  startButton: document.getElementById("startButton"),
+  usernameError: document.getElementById("usernameError"),
+  leaderboardElement: document.getElementById("leaderboard"),
+  currentUsernameElement: document.getElementById("currentUsername"),
+  gameUiElement: document.getElementById("gameUi"),
+  highScoreMessageElement: document.getElementById("highScoreMessage"),
 });
 
 // Device Detection

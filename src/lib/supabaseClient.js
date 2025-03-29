@@ -158,3 +158,85 @@ export const saveHighScore = async (username, score) => {
     console.error("An unexpected error occurred during saveHighScore:", error);
   }
 };
+
+// Function to fetch top N high scores for the leaderboard
+export const fetchLeaderboard = async (limit = 10) => {
+  // Ensure configuration is set
+  if (
+    supabaseUrl === "YOUR_SUPABASE_URL" ||
+    supabaseKey === "YOUR_SUPABASE_ANON_KEY"
+  ) {
+    console.log("Skipping leaderboard fetch: Supabase not configured.");
+    return []; // Return empty array if not configured
+  }
+
+  try {
+    console.log(`Fetching top ${limit} leaderboard scores...`);
+    const { data, error } = await supabase
+      .from("high_scores")
+      .select("username, score") // Select needed columns
+      .order("score", { ascending: false }) // Order by score descending
+      .limit(limit); // Limit the number of results
+
+    if (error) {
+      console.error("Error fetching leaderboard scores:", error);
+      return []; // Return empty array on error
+    }
+
+    console.log("Leaderboard scores fetched successfully:", data);
+    return data || []; // Return data or empty array if data is null
+  } catch (error) {
+    console.error(
+      "An unexpected error occurred during fetchLeaderboard:",
+      error
+    );
+    return []; // Return empty array on unexpected error
+  }
+};
+
+// --- Function to fetch a specific user's high score ---
+export const fetchUserHighScore = async (username) => {
+  if (!username) {
+    console.warn("fetchUserHighScore called with no username.");
+    return 0; // Return 0 if no username provided
+  }
+  // Ensure configuration is set (optional, but good practice)
+  if (
+    supabaseUrl === "YOUR_SUPABASE_URL" ||
+    supabaseKey === "YOUR_SUPABASE_ANON_KEY"
+  ) {
+    console.log("Skipping user high score fetch: Supabase not configured.");
+    return 0;
+  }
+
+  const trimmedUsername = username.trim(); // Trim username just in case
+
+  try {
+    const { data, error } = await supabase
+      .from("high_scores") // Corrected table name from "scores" to "high_scores"
+      .select("score")
+      .eq("username", trimmedUsername) // Use trimmed username for lookup
+      .order("score", { ascending: false }) // Get the highest score first
+      .limit(1); // We only need the top one
+
+    if (error && error.code !== "PGRST116") {
+      // PGRST116 means 0 rows found, which is not an error in this context
+      console.error("Error fetching user high score:", error.message);
+      return 0; // Return 0 on actual error
+    }
+
+    if (data && data.length > 0) {
+      console.log(
+        `Fetched high score for ${trimmedUsername}: ${data[0].score}`
+      );
+      return data[0].score; // Return the highest score found
+    } else {
+      console.log(`No previous high score found for ${trimmedUsername}.`);
+      return 0; // Return 0 if no score exists for the user
+    }
+  } catch (err) {
+    console.error("Unexpected error in fetchUserHighScore:", err);
+    return 0; // Return 0 on unexpected errors
+  }
+};
+// --- End fetch user high score function ---
