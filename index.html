@@ -8,14 +8,58 @@
       body {
         margin: 0;
         overflow: hidden;
+        background-color: #000; /* Ensure body background is dark */
+        color: white;
+        font-family: monospace;
+      }
+      canvas {
+        display: block; /* Prevent extra space below canvas */
+      }
+      #gameUi {
+        /* Initially hide game UI */
+        display: none;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none; /* Allow clicks/touches to pass through */
       }
       #score {
         position: absolute;
         top: 10px;
         left: 10px;
         color: white;
-        font-family: monospace;
         font-size: 20px;
+        pointer-events: auto; /* Re-enable events if needed */
+      }
+      /* Add styles for the leaderboard */
+      #leaderboard {
+        position: absolute;
+        top: 40px; /* Position below the score */
+        left: 10px;
+        color: #cccccc; /* Lighter gray color */
+        font-size: 14px;
+        line-height: 1.4; /* Adjust spacing between lines */
+        pointer-events: auto; /* Allow interaction if needed later */
+        background: rgba(0, 0, 0, 0.5); /* Optional: slight background */
+        padding: 5px 8px;
+        border-radius: 4px;
+        max-height: 150px; /* Limit height */
+        overflow-y: auto; /* Add scroll if content exceeds height */
+        min-width: 150px; /* Ensure minimum width */
+      }
+      /* Add styles for the username display */
+      #currentUsername {
+        position: absolute;
+        top: 10px; /* Align with score */
+        right: 10px;
+        color: #00ffff; /* Cyan color to match theme */
+        font-size: 16px; /* Slightly smaller than score */
+        pointer-events: auto;
+        background: rgba(0, 0, 0, 0.5); /* Optional: slight background */
+        padding: 5px 8px;
+        border-radius: 4px;
       }
       #gameOver {
         position: absolute;
@@ -26,9 +70,9 @@
         color: white;
         padding: 20px;
         border-radius: 10px;
-        font-family: monospace;
         text-align: center;
-        display: none;
+        display: none; /* Initially hidden */
+        pointer-events: auto; /* Re-enable events */
       }
       #instructions {
         position: absolute;
@@ -36,31 +80,120 @@
         left: 0;
         width: 100%;
         color: white;
+        text-align: center;
+        pointer-events: auto; /* Re-enable events */
+      }
+
+      /* Username Overlay Styles */
+      #usernameOverlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9); /* Darker overlay */
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 10; /* Ensure it's on top */
+        color: white;
         font-family: monospace;
         text-align: center;
+      }
+      #usernameOverlay h1 {
+        margin-bottom: 20px;
+        font-size: 2em;
+        color: #00ffff; /* Cyan title */
+      }
+      #usernameInput {
+        padding: 10px 15px;
+        font-size: 1.2em;
+        margin-bottom: 20px;
+        border: 2px solid #00ffff;
+        background-color: #111;
+        color: white;
+        border-radius: 5px;
+        width: 250px;
+        text-align: center;
+      }
+      #usernameInput:focus {
+        outline: none;
+        box-shadow: 0 0 10px #00ffff;
+      }
+      #startButton {
+        padding: 12px 25px;
+        font-size: 1.2em;
+        background-color: #00aa00; /* Green button */
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+      }
+      #startButton:hover {
+        background-color: #00ff00; /* Brighter green on hover */
+      }
+      #usernameError {
+        color: #ff4444; /* Red error message */
+        margin-top: 10px;
+        height: 1em; /* Reserve space */
       }
     </style>
   </head>
   <body>
-    <div id="score">Score: 0</div>
-    <div id="gameOver">
-      <h1>GAME OVER</h1>
-      <div id="finalScore">Final Score: 0</div>
-      <p>Press R to Restart</p>
+    <!-- Username Input Overlay -->
+    <div id="usernameOverlay">
+      <h1>Wireframe Runner</h1>
+      <label for="usernameInput" class="sr-only">Enter Username:</label>
+      <!-- Hidden label for accessibility -->
+      <input
+        type="text"
+        id="usernameInput"
+        placeholder="Enter Username"
+        aria-label="Enter Username"
+        maxlength="20"
+        required
+      />
+      <div id="usernameError"></div>
+      <button id="startButton" aria-label="Start Game">Start Game</button>
     </div>
-    <div id="instructions">Use Left/Right Arrows or A/D to Move</div>
 
-    <!-- Import Three.js -->
+    <!-- Game UI Container -->
+    <div id="gameUi">
+      <div id="score">Score: 0</div>
+      <div id="leaderboard">Loading scores...</div>
+      <div id="currentUsername">User: -</div>
+      <div id="gameOver">
+        <h1>GAME OVER</h1>
+        <div id="finalScore">Final Score: 0</div>
+        <p>Press R or Tap to Restart</p>
+        <!-- Updated restart text -->
+      </div>
+      <div id="instructions">
+        Use Left/Right Arrows or A/D or Tap Screen Sides to Move
+      </div>
+      <!-- Updated instructions -->
+    </div>
+
+    <!-- Canvas will be added here by Three.js -->
+
+    <!-- Import Map -->
     <script type="importmap">
       {
         "imports": {
           "three": "/node_modules/three/build/three.module.js",
-          "three/addons/": "/node_modules/three/examples/jsm/"
+          "three/addons/": "/node_modules/three/examples/jsm/",
+          "@supabase/supabase-js": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm",
+          "@supabase/auth-js": "https://cdn.jsdelivr.net/npm/@supabase/auth-js/+esm",
+          "@supabase/postgrest-js": "https://cdn.jsdelivr.net/npm/@supabase/postgrest-js/+esm",
+          "@supabase/functions-js": "https://cdn.jsdelivr.net/npm/@supabase/functions-js/+esm",
+          "@supabase/realtime-js": "https://cdn.jsdelivr.net/npm/@supabase/realtime-js/+esm"
         }
       }
     </script>
 
-    <!-- Main game script - CHANGED FROM game.js to src/index.js -->
+    <!-- Main game script -->
     <script type="module" src="src/index.js"></script>
   </body>
 </html>

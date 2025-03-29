@@ -4,11 +4,16 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import {
   BACKGROUND_COLORS,
+  COLOR_TRANSITION_SPEED,
   BLOOM_PARAMS,
   CAMERA_Y,
   CAMERA_Z,
   GRID_COLOR,
 } from "../config/constants.js";
+
+// Constants for the lane expansion effect
+const BLOOM_BOOST_DURATION = 0.4; // Duration of the boost in seconds
+const BLOOM_STRENGTH_BOOST = 2.5; // How much to increase bloom strength
 
 export class SceneRenderer {
   constructor() {
@@ -20,9 +25,13 @@ export class SceneRenderer {
     this.setupGrid();
     this.setupPostProcessing();
 
-    // Background color animation
+    // Background color animation state
     this.bgColorIndex = 0;
     this.bgColorLerp = 0;
+
+    // Lane expansion effect state
+    this.isBoostingBloom = false;
+    this.bloomBoostTimer = 0;
 
     window.addEventListener("resize", this.handleResize.bind(this));
   }
@@ -85,8 +94,9 @@ export class SceneRenderer {
     this.composer.setSize(width, height);
   }
 
-  updateBackgroundColor(deltaTime, transitionSpeed) {
-    this.bgColorLerp += deltaTime * transitionSpeed;
+  update(deltaTime) {
+    // Update background color transition
+    this.bgColorLerp += deltaTime * COLOR_TRANSITION_SPEED;
 
     if (this.bgColorLerp >= 1) {
       this.bgColorIndex = (this.bgColorIndex + 1) % BACKGROUND_COLORS.length;
@@ -98,6 +108,31 @@ export class SceneRenderer {
       BACKGROUND_COLORS[(this.bgColorIndex + 1) % BACKGROUND_COLORS.length];
 
     this.scene.background.copy(currentColor).lerp(nextColor, this.bgColorLerp);
+
+    // Update bloom boost effect
+    if (this.isBoostingBloom) {
+      this.bloomPass.strength = BLOOM_STRENGTH_BOOST;
+      this.bloomBoostTimer -= deltaTime;
+      if (this.bloomBoostTimer <= 0) {
+        this.isBoostingBloom = false;
+        this.bloomPass.strength = BLOOM_PARAMS.strength; // Restore original strength
+        console.log("Bloom boost ended.");
+      }
+    } else {
+      // Ensure bloom is at default if not boosting (safety check)
+      if (this.bloomPass.strength !== BLOOM_PARAMS.strength) {
+        this.bloomPass.strength = BLOOM_PARAMS.strength;
+      }
+    }
+  }
+
+  // Method to trigger the effect
+  triggerLaneExpansionEffect() {
+    if (!this.isBoostingBloom) {
+      console.log("Triggering bloom boost effect!");
+      this.isBoostingBloom = true;
+      this.bloomBoostTimer = BLOOM_BOOST_DURATION;
+    }
   }
 
   render() {

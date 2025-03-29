@@ -1,5 +1,5 @@
 // Game constants and configuration
-import * as THREE from "/node_modules/three/build/three.module.js";
+import * as THREE from "three";
 
 // Player & Lanes
 export const PLAYER_SIZE = 1;
