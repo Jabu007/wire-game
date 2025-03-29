@@ -49,6 +49,36 @@
         overflow-y: auto; /* Add scroll if content exceeds height */
         min-width: 150px; /* Ensure minimum width */
       }
+      #leaderboard ul {
+        list-style: none; /* Remove default list bullets */
+        padding: 0;
+        margin: 0;
+      }
+      #leaderboard li {
+        margin-bottom: 4px; /* Space between entries */
+        display: flex; /* Use flexbox for alignment */
+        align-items: center; /* Center items vertically */
+      }
+      .online-indicator {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background-color: #00ff00; /* Bright green */
+        border-radius: 50%; /* Make it a circle */
+        margin-right: 6px; /* Space between dot and text */
+        box-shadow: 0 0 3px #00ff00; /* Optional glow */
+        flex-shrink: 0; /* Prevent shrinking */
+      }
+      .offline-indicator {
+        /* Optional: Style for offline users if desired */
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background-color: #555555; /* Dark gray */
+        border-radius: 50%;
+        margin-right: 6px;
+        flex-shrink: 0;
+      }
       /* Add styles for the username display */
       #currentUsername {
         position: absolute;
@@ -216,7 +246,11 @@
     <!-- Game UI Container -->
     <div id="gameUi">
       <div id="score">Score: 0</div>
-      <div id="leaderboard">Loading scores...</div>
+      <div id="leaderboard">
+        <ul>
+          <li>Loading scores...</li>
+        </ul>
+      </div>
       <div id="currentUsername">User: -</div>
       <!-- Add the High Score Message Element -->
       <div id="highScoreMessage">New High Score!</div>

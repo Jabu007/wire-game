@@ -174,7 +174,7 @@ export const fetchLeaderboard = async (limit = 10) => {
     console.log(`Fetching top ${limit} leaderboard scores...`);
     const { data, error } = await supabase
       .from("high_scores")
-      .select("username, score") // Select needed columns
+      .select("username, score, is_online") // Select needed columns, including is_online
       .order("score", { ascending: false }) // Order by score descending
       .limit(limit); // Limit the number of results
 
@@ -240,3 +240,143 @@ export const fetchUserHighScore = async (username) => {
   }
 };
 // --- End fetch user high score function ---
+
+// --- Function to update user's online status ---
+export const updateUserOnlineStatus = async (username, isOnline) => {
+  // Ensure configuration is set
+  if (
+    supabaseUrl === "YOUR_SUPABASE_URL" ||
+    supabaseKey === "YOUR_SUPABASE_ANON_KEY" ||
+    !supabaseUrl || // Add explicit check for missing vars
+    !supabaseKey
+  ) {
+    console.warn(
+      // Use warn instead of log for skipped operations
+      "Skipping online status update: Supabase not configured or keys missing."
+    );
+    return;
+  }
+
+  // Validate input
+  if (
+    !username ||
+    typeof username !== "string" ||
+    username.trim().length === 0
+  ) {
+    console.error("Invalid username provided for online status update.");
+    return;
+  }
+  if (typeof isOnline !== "boolean") {
+    console.error("Invalid online status provided (must be boolean).");
+    return;
+  }
+
+  const trimmedUsername = username.trim();
+
+  try {
+    console.log(
+      `Attempting to upsert online status to ${isOnline} for user ${trimmedUsername}` // Changed log message slightly
+    );
+
+    // Use upsert: Insert if user doesn't exist, update if they do.
+    const { data, error } = await supabase.from("high_scores").upsert(
+      // Capture data as well
+      { username: trimmedUsername, is_online: isOnline },
+      {
+        onConflict: "username", // Specify the conflict target
+        // Ensure the user has INSERT (username, is_online) and UPDATE (is_online) permissions via RLS
+      }
+    );
+
+    if (error) {
+      console.error(
+        `Error upserting online status for ${trimmedUsername}:`,
+        error.message, // Log the specific error message
+        " | Code:",
+        error.code, // Log Supabase error code if available
+        " | Details:",
+        error.details // Log details if available
+      );
+    } else {
+      console.log(
+        `Online status for ${trimmedUsername} set to ${isOnline} successfully. Response data:`,
+        data // Log response data on success (might be null)
+      );
+    }
+  } catch (error) {
+    console.error(
+      `An unexpected error occurred during updateUserOnlineStatus for ${trimmedUsername}:`, // Add username to catch block log
+      error
+    );
+  }
+};
+// --- End update user online status function ---
+
+// --- Real-time Subscription Functions ---
+
+/**
+ * Subscribes to changes in the high_scores table and calls the callback function.
+ * @param {function} callback - The function to call when a change occurs.
+ * @returns {object} The Supabase real-time channel instance.
+ */
+export const subscribeToLeaderboardChanges = (callback) => {
+  // Ensure configuration is set
+  if (
+    supabaseUrl === "YOUR_SUPABASE_URL" ||
+    supabaseKey === "YOUR_SUPABASE_ANON_KEY"
+  ) {
+    console.log("Skipping leaderboard subscription: Supabase not configured.");
+    return null; // Return null if not configured
+  }
+
+  console.log("Attempting to subscribe to leaderboard changes...");
+
+  const channel = supabase
+    .channel("public:high_scores") // Create a channel for the table
+    .on(
+      "postgres_changes", // Listen to database changes
+      {
+        event: "*", // Listen for INSERT, UPDATE, DELETE
+        schema: "public",
+        table: "high_scores",
+      },
+      (payload) => {
+        console.log("Leaderboard change detected:", payload);
+        callback(); // Call the provided callback function to refresh the leaderboard
+      }
+    )
+    .subscribe((status, err) => {
+      if (status === "SUBSCRIBED") {
+        console.log("Successfully subscribed to leaderboard changes!");
+        // Optionally trigger an initial fetch upon successful subscription
+        // callback();
+      } else if (status === "CHANNEL_ERROR") {
+        console.error("Subscription Error:", err);
+      } else if (status === "TIMED_OUT") {
+        console.warn("Subscription timed out.");
+      } else {
+        console.log("Subscription status:", status);
+      }
+    });
+
+  return channel; // Return the channel so it can be unsubscribed later
+};
+
+/**
+ * Unsubscribes from leaderboard changes.
+ * @param {object} channel - The Supabase real-time channel instance to unsubscribe from.
+ */
+export const unsubscribeFromLeaderboard = async (channel) => {
+  if (channel) {
+    try {
+      const status = await supabase.removeChannel(channel);
+      console.log("Unsubscribed from leaderboard changes. Status:", status);
+    } catch (error) {
+      console.error("Error unsubscribing from leaderboard:", error);
+    }
+  } else {
+    console.log("No active leaderboard channel to unsubscribe from.");
+  }
+};
+
+// --- End Real-time Subscription Functions ---

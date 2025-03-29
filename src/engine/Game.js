@@ -4,7 +4,10 @@ import { ObstacleManager } from "../entities/Obstacle.js";
 import { City } from "../entities/City.js";
 import { SceneRenderer } from "../rendering/Renderer.js";
 import { InputHandler } from "../input/InputHandler.js";
-import { saveHighScore } from "../lib/supabaseClient.js"; // Import Supabase function
+import {
+  saveHighScore,
+  updateUserOnlineStatus,
+} from "../lib/supabaseClient.js"; // Import Supabase functions
 import {
   OBSTACLE_BASE_SPEED,
   SPAWN_INTERVAL_INITIAL,
@@ -109,6 +112,13 @@ export class Game {
     this.userHighScore = userHighScore; // Update high score on reset if needed
     this.isSavingScore = false;
     this.highScoreMessageShownThisRun = false; // Reset the flag
+
+    // Set user online status when game resets/starts
+    if (this.username) {
+      updateUserOnlineStatus(this.username, true).catch((err) => {
+        console.error("Failed to set user online status on reset:", err);
+      });
+    }
 
     // Clear any existing high score message timeout
     if (this.highScoreMessageTimeout) {
@@ -310,6 +320,13 @@ export class Game {
     this.gameOver = true;
     console.log(`Game Over! Final Score for ${this.username}: ${this.score}`);
 
+    // Set user online status to false when game ends
+    if (this.username) {
+      updateUserOnlineStatus(this.username, false).catch((err) => {
+        console.error("Failed to set user offline status on game end:", err);
+      });
+    }
+
     // Stop player movement sound? (If applicable)
 
     // Update UI
@@ -345,7 +362,7 @@ export class Game {
           // Update the locally stored high score for the next run
           this.userHighScore = this.score;
           if (this.onScoreSaved) {
-            this.onScoreSaved();
+            this.onScoreSaved(); // This will trigger leaderboard update
           }
         })
         .catch((err) => {
@@ -361,6 +378,11 @@ export class Game {
       console.log(
         `Score ${this.score} is not higher than high score ${this.userHighScore}. Not saving.`
       );
+      // Even if not saving score, ensure leaderboard updates if needed (e.g., status change)
+      // However, the subscription should handle this. If not, uncomment below:
+      // if (this.onScoreSaved) {
+      //   this.onScoreSaved();
+      // }
     }
   }
 
@@ -394,6 +416,16 @@ export class Game {
     if (this.highScoreMessageTimeout) {
       clearTimeout(this.highScoreMessageTimeout);
       this.highScoreMessageTimeout = null;
+    }
+
+    // Set user online status to false when game is disposed (e.g., page close)
+    // This might be redundant if endGame was called, but good for cleanup.
+    if (this.username && !this.gameOver) {
+      // Only if game didn't end normally
+      console.log("Setting user offline during dispose...");
+      updateUserOnlineStatus(this.username, false).catch((err) => {
+        console.error("Failed to set user offline status on dispose:", err);
+      });
     }
 
     if (this.player) this.player.dispose();
