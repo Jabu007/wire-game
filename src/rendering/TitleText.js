@@ -29,9 +29,9 @@ export class TitleText {
       (font) => {
         const textGeometry = new TextGeometry("Jabu's Game", {
           font: font,
-          size: 1.5, // Further reduced size from 2.5 to 1.5
-          height: 0.05, // Significantly reduced height (depth) from 0.2
-          curveSegments: 2, // Reduced curve segments for simpler geometry
+          size: 1.0, // Reduced size from 1.5 to 1.0
+          height: 0.05, // Keep height minimal
+          curveSegments: 2,
           bevelEnabled: false,
         });
 
@@ -51,8 +51,8 @@ export class TitleText {
 
         this.mesh = new THREE.Mesh(textGeometry, textMaterial);
 
-        // Position on the horizon, adjusted Y slightly if needed due to smaller size
-        this.mesh.position.set(0, 5, OBSTACLE_SPAWN_Z * 0.8); // Lowered Y position slightly
+        // Position on the horizon, Y position might need slight adjustment if needed
+        this.mesh.position.set(0, 5, OBSTACLE_SPAWN_Z * 0.8); // Keeping Y at 5 for now
 
         this.scene.add(this.mesh);
       }

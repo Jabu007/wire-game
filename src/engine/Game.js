@@ -20,6 +20,7 @@ import {
   LANE_EXPANSION_LEVEL_2_SCORE,
   LANE_EXPANSION_LEVEL_3_SCORE,
   BLOOM_PARAMS,
+  isMobileDevice, // Import isMobileDevice
 } from "../config/constants.js";
 
 export class Game {

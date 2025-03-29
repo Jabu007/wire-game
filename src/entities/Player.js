@@ -15,6 +15,7 @@ export class Player {
     this.targetX = this.lanes[this.laneIndex];
     this.trailPoints = [];
     this.moveLerpFactor = 0.15;
+    this.rotationSpeed = 1.0;
 
     this.createPlayerMesh();
     this.createTrail();
@@ -22,9 +23,10 @@ export class Player {
 
   createPlayerMesh() {
     const geometry = new THREE.SphereGeometry(PLAYER_SIZE / 2, 16, 16);
-    const material = new THREE.MeshBasicMaterial({
+    const material = new THREE.MeshStandardMaterial({
       color: PLAYER_COLOR,
-      wireframe: true,
+      emissive: PLAYER_COLOR,
+      emissiveIntensity: 1.5,
     });
 
     this.mesh = new THREE.Mesh(geometry, material);
@@ -52,6 +54,10 @@ export class Player {
     // Smoothly move towards the target lane position
     this.mesh.position.x +=
       (this.targetX - this.mesh.position.x) * this.moveLerpFactor;
+
+    // Add rotation
+    this.mesh.rotation.y += this.rotationSpeed * deltaTime;
+    this.mesh.rotation.x += this.rotationSpeed * 0.5 * deltaTime;
 
     // Update trail
     this.updateTrail();
@@ -99,6 +105,7 @@ export class Player {
     this.mesh.position.x = this.targetX;
     this.mesh.position.y = PLAYER_SIZE / 2;
     this.mesh.position.z = 0;
+    this.mesh.rotation.set(0, 0, 0);
     this.resetTrail();
   }
 
