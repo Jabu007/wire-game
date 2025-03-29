@@ -2,9 +2,24 @@ import { createClient } from "@supabase/supabase-js";
 
 // TODO: Replace with your actual Supabase URL and Anon Key
 // It's recommended to use environment variables for these in a real application
-const supabaseUrl = "https://hjvrihhpcgdpzschgkdd.supabase.co";
-const supabaseKey =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhqdnJpaGhwY2dkcHpzY2hna2RkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMyNzQ2MzcsImV4cCI6MjA1ODg1MDYzN30.tPHDnR3UL0qQdrJc3wizT4nio-0m72sJoocnpExMRtY";
+// These variables are typically sourced from environment variables in modern web development.
+// This requires a build process (like Vite, Webpack, etc.) to correctly inject them.
+// Ensure your .env file has VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY defined.
+// Example using Vite's environment variable handling:
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// Fallback for environments without a build process or if variables aren't set
+// (You might want to remove this fallback or handle it differently in production)
+// const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://hjvrihhpcgdpzschgkdd.supabase.co";
+// const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhqdnJpaGhwY2dkcHpzY2hna2RkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMyNzQ2MzcsImV4cCI6MjA1ODg1MDYzN30.tPHDnR3UL0qQdrJc3wizT4nio-0m72sJoocnpExMRtY";
+
+// NOTE: Directly reading .env files from client-side JavaScript in the browser is not possible
+// without a build tool due to security restrictions. The code above assumes a build tool
+// like Vite is processing your code and making prefixed environment variables available
+// via `import.meta.env`. If you are not using a build tool, you cannot directly access
+// .env variables this way, and you might need to keep them hardcoded (less secure) or
+// use a different configuration method.
 
 // Basic check if placeholder values are still present
 if (
