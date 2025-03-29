@@ -139,9 +139,31 @@
         margin-top: 10px;
         height: 1em; /* Reserve space */
       }
+
+      /* --- Style for the new Game Title --- */
+      #gameTitle {
+        position: absolute;
+        top: 20px; /* Adjust vertical position as needed */
+        left: 50%;
+        transform: translateX(-50%);
+        font-family: "Courier New", Courier, monospace; /* Monospaced font */
+        font-size: 2.5em; /* Reduced font size */
+        color: #ffffff; /* Bright white base color */
+        /* Reduced Glowing effect */
+        text-shadow: 0 0 4px #fff, /* Subtle inner white */ 0 0 8px #fff,
+          /* Slightly wider white */ 0 0 12px #00eeee,
+          /* Fainter cyan */ 0 0 20px #00aaaa; /* Darker, wider cyan */
+        z-index: 100; /* Ensure it's above other elements */
+        pointer-events: none; /* Make it non-interactive */
+        white-space: nowrap; /* Prevent wrapping on smaller screens */
+      }
+      /* --- End Game Title Style --- */
     </style>
   </head>
   <body>
+    <!-- Add the Game Title Here -->
+    <div id="gameTitle">Jabu's Wire Game</div>
+
     <!-- Username Input Overlay -->
     <div id="usernameOverlay">
       <h1>Wireframe Runner</h1>
@@ -178,22 +200,8 @@
 
     <!-- Canvas will be added here by Three.js -->
 
-    <!-- Import Map -->
-    <script type="importmap">
-      {
-        "imports": {
-          "three": "/node_modules/three/build/three.module.js",
-          "three/addons/": "/node_modules/three/examples/jsm/",
-          "@supabase/supabase-js": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm",
-          "@supabase/auth-js": "https://cdn.jsdelivr.net/npm/@supabase/auth-js/+esm",
-          "@supabase/postgrest-js": "https://cdn.jsdelivr.net/npm/@supabase/postgrest-js/+esm",
-          "@supabase/functions-js": "https://cdn.jsdelivr.net/npm/@supabase/functions-js/+esm",
-          "@supabase/realtime-js": "https://cdn.jsdelivr.net/npm/@supabase/realtime-js/+esm"
-        }
-      }
-    </script>
-
-    <!-- Main game script -->
-    <script type="module" src="src/index.js"></script>
+    <!-- Update Main game script path -->
+    <script type="module" src="/src/index.js"></script>
+    <!-- Add leading slash -->
   </body>
 </html>

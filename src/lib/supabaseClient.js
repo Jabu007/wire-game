@@ -21,16 +21,19 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 // .env variables this way, and you might need to keep them hardcoded (less secure) or
 // use a different configuration method.
 
-// Basic check if placeholder values are still present
-if (
-  supabaseUrl === "YOUR_SUPABASE_URL" ||
+// Basic check if variables are loaded (optional but good practice)
+if (!supabaseUrl || !supabaseKey) {
+  console.error(
+    "Supabase URL or Key is missing. Make sure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in your .env file and Vite is running."
+  );
+  // Handle the error appropriately - maybe prevent the app from fully initializing
+} else if (
+  supabaseUrl === "YOUR_SUPABASE_URL" || // Keep checks for placeholder values if needed
   supabaseKey === "YOUR_SUPABASE_ANON_KEY"
 ) {
   console.warn(
-    "Supabase URL or Key not configured in src/lib/supabaseClient.js. High scores will not be saved."
+    "Using placeholder Supabase URL or Key. High scores might not work."
   );
-  // Provide a mock client or null to prevent errors if not configured
-  // For this example, we'll allow it to proceed but saving will fail.
 }
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
