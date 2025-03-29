@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jabu's Game - Wireframe Runner</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+      #score {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        color: white;
+        font-family: monospace;
+        font-size: 20px;
+      }
+      #gameOver {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        font-family: monospace;
+        text-align: center;
+        display: none;
+      }
+      #instructions {
+        position: absolute;
+        bottom: 20px;
+        left: 0;
+        width: 100%;
+        color: white;
+        font-family: monospace;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="score">Score: 0</div>
+    <div id="gameOver">
+      <h1>GAME OVER</h1>
+      <div id="finalScore">Final Score: 0</div>
+      <p>Press R to Restart</p>
+    </div>
+    <div id="instructions">Use Left/Right Arrows or A/D to Move</div>
+
+    <!-- Import Three.js -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "/node_modules/three/build/three.module.js",
+          "three/addons/": "/node_modules/three/examples/jsm/"
+        }
+      }
+    </script>
+
+    <!-- Main game script - CHANGED FROM game.js to src/index.js -->
+    <script type="module" src="src/index.js"></script>
+  </body>
+</html>
