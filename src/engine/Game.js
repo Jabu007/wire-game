@@ -46,6 +46,10 @@ export class Game {
     this.highScoreMessageShownThisRun = false; // Flag for high score message
     this.highScoreMessageTimeout = null; // Timeout ID for hiding the message
 
+    // --- Add Audio Reference ---
+    this.backgroundMusic = document.getElementById("backgroundMusic");
+    // --- End Audio Reference ---
+
     // Get UI elements using the utility function
     const elements = getElements();
     this.scoreElement = elements.scoreElement;
@@ -410,6 +414,14 @@ export class Game {
       clearTimeout(this.highScoreMessageTimeout);
       this.highScoreMessageTimeout = null;
     }
+
+    // --- Pause Music on Dispose (if not already paused by endGame) ---
+    if (this.backgroundMusic && !this.gameOver) {
+      // Only pause if dispose happens before game over (e.g., starting new game)
+      this.backgroundMusic.pause();
+      console.log("Background music paused on game dispose.");
+    }
+    // --- End Pause Music ---
 
     if (this.player) this.player.dispose();
     if (this.obstacleManager) this.obstacleManager.dispose();
