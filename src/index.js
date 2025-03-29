@@ -91,9 +91,11 @@ const handleStartGame = async () => {
   // Set user online status to true *before* fetching high score or starting game
   try {
     await updateUserOnlineStatus(currentUsername, true);
+    await updateLeaderboard();
   } catch (error) {
     console.error("Failed to set user online status before game start:", error);
     // Decide if you want to block game start or just log the error
+    // Potentially show an error to the user here
   }
 
   // --- Fetch user's high score BEFORE starting ---

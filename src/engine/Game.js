@@ -320,13 +320,6 @@ export class Game {
     this.gameOver = true;
     console.log(`Game Over! Final Score for ${this.username}: ${this.score}`);
 
-    // Set user online status to false when game ends
-    if (this.username) {
-      updateUserOnlineStatus(this.username, false).catch((err) => {
-        console.error("Failed to set user offline status on game end:", err);
-      });
-    }
-
     // Stop player movement sound? (If applicable)
 
     // Update UI
@@ -416,16 +409,6 @@ export class Game {
     if (this.highScoreMessageTimeout) {
       clearTimeout(this.highScoreMessageTimeout);
       this.highScoreMessageTimeout = null;
-    }
-
-    // Set user online status to false when game is disposed (e.g., page close)
-    // This might be redundant if endGame was called, but good for cleanup.
-    if (this.username && !this.gameOver) {
-      // Only if game didn't end normally
-      console.log("Setting user offline during dispose...");
-      updateUserOnlineStatus(this.username, false).catch((err) => {
-        console.error("Failed to set user offline status on dispose:", err);
-      });
     }
 
     if (this.player) this.player.dispose();
