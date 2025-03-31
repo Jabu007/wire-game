@@ -532,7 +532,27 @@
     <!-- Canvas will be added here by Three.js -->
 
     <!-- Add the Audio Element (outside UI, but controlled by JS) -->
-    <audio id="backgroundMusic" src="/lofi.mp3" loop preload="auto"></audio>
+    <audio
+      id="backgroundMusic"
+      src="/lofi.mp3"
+      loop
+      preload="auto"
+      crossorigin="anonymous"
+    ></audio>
+
+    <!-- Add this after line 796 (near your audio element) -->
+    <div
+      id="audioStatus"
+      style="
+        position: fixed;
+        bottom: 5px;
+        right: 5px;
+        font-size: 10px;
+        color: #555;
+        pointer-events: none;
+        z-index: 1000;
+      "
+    ></div>
 
     <!-- Update Main game script path -->
     <script type="module" src="/src/index.js"></script>

@@ -220,94 +220,27 @@ const handleStartGame = async () => {
     return;
   }
 
-  // --- MODIFICATION START ---
-  // Enhanced Audio Playback Logic & Logging
-  console.log("handleStartGame: Attempting to handle background music...");
+  // Improved audio handling
   if (backgroundMusic) {
     console.log(
-      `Audio State Before Play Attempt: muted=${backgroundMusic.muted}, paused=${backgroundMusic.paused}, readyState=${backgroundMusic.readyState}, src=${backgroundMusic.currentSrc}`
+      `Audio State: muted=${backgroundMusic.muted}, paused=${backgroundMusic.paused}, readyState=${backgroundMusic.readyState}`
     );
 
-    // Check if NOT muted *before* attempting play
-    if (!backgroundMusic.muted) {
-      console.log("Audio is not muted. Proceeding with play attempt."); // Added log
-      try {
-        // Check if ready to play (or potentially ready soon)
-        // HAVE_METADATA (1) might be enough sometimes, but HAVE_FUTURE_DATA (3) is safer
-        if (backgroundMusic.readyState >= 1) {
-          console.log(
-            `Attempting to play background music (readyState: ${backgroundMusic.readyState})...`
-          );
-          // The play() method returns a Promise
-          await backgroundMusic.play();
-          console.log(
-            "Background music playback initiated successfully (Promise resolved)."
-          );
-        } else {
-          console.warn(
-            `Background music not ready (readyState: ${backgroundMusic.readyState}). Adding 'canplaythrough' listener as fallback.`
-          );
-          // Add a one-time listener to play when ready
-          backgroundMusic.addEventListener(
-            "canplaythrough",
-            async () => {
-              // Double-check conditions before playing in the listener
-              if (!backgroundMusic.muted && backgroundMusic.paused) {
-                console.log(
-                  "Playing background music via 'canplaythrough' listener..."
-                );
-                try {
-                  await backgroundMusic.play();
-                  console.log(
-                    "Background music playback initiated successfully via listener."
-                  );
-                } catch (listenerError) {
-                  console.error(
-                    "Delayed play via listener failed:",
-                    listenerError
-                  );
-                }
-              } else {
-                console.log(
-                  "Conditions not met for playing in 'canplaythrough' listener (muted/already playing)."
-                );
-              }
-            },
-            { once: true } // Ensure listener runs only once
-          );
-          // Also listen for general errors loading the audio file
-          backgroundMusic.addEventListener(
-            "error",
-            (e) => {
-              console.error(
-                "Audio element reported an error event:", // More specific log
-                e,
-                backgroundMusic.error // Log the error object associated with the element
-              );
-            },
-            { once: true }
-          );
-        }
-      } catch (error) {
-        console.error(
-          "Audio play() promise was rejected. This often indicates browser restrictions, file issues, or the element not being ready.",
-          error // Log the specific error object
-        );
-        // Update UI to reflect failure - maybe the mute button state is wrong?
-        if (!backgroundMusic.muted) {
-          // Consider if UI update is needed here. The existing mute button logic seems okay.
-          console.warn(
-            "Playback failed, but audio wasn't muted. Check browser console for details."
-          );
+    try {
+      // Try to play audio as part of the user interaction
+      if (backgroundMusic.paused && !backgroundMusic.muted) {
+        const playPromise = backgroundMusic.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((error) => {
+            console.warn("Audio play failed on start game:", error);
+            // We'll keep trying with our event listeners from initializeAudio
+          });
         }
       }
-    } else {
-      console.log("Background music is muted, not attempting to play.");
+    } catch (e) {
+      console.warn("Exception trying to play audio:", e);
     }
-  } else {
-    console.error("handleStartGame: Background music element not found!");
   }
-  // --- MODIFICATION END ---
 
   elements.usernameError.textContent = ""; // Clear error
   currentUsername = username;
@@ -466,3 +399,103 @@ window.addEventListener("beforeunload", () => {
 // --- Call the initialization function ---
 // Initialize mute state and button
 initializeMuteState();
+
+// Add this function after initializeMuteState() function
+
+/**
+ * Initializes and troubleshoots audio playback
+ */
+const initializeAudio = () => {
+  if (!backgroundMusic) {
+    console.error("Background music element not found!");
+    return;
+  }
+
+  const audioStatus = document.getElementById("audioStatus");
+
+  // Display loading status if the element exists
+  if (audioStatus) {
+    backgroundMusic.addEventListener("loadstart", () => {
+      audioStatus.textContent = "Audio: Loading...";
+    });
+
+    backgroundMusic.addEventListener("canplaythrough", () => {
+      audioStatus.textContent =
+        "Audio: Ready" + (backgroundMusic.muted ? " (Muted)" : "");
+    });
+
+    backgroundMusic.addEventListener("error", (e) => {
+      audioStatus.textContent = `Audio Error: ${
+        e.target.error?.message || "Unknown error"
+      }`;
+      console.error("Audio loading error:", e);
+    });
+
+    backgroundMusic.addEventListener("playing", () => {
+      audioStatus.textContent =
+        "Audio: Playing" + (backgroundMusic.muted ? " (Muted)" : "");
+    });
+
+    backgroundMusic.addEventListener("pause", () => {
+      audioStatus.textContent = "Audio: Paused";
+    });
+  }
+
+  // Handle audio playback
+  const handleStartAudio = () => {
+    if (backgroundMusic.paused) {
+      const playPromise = backgroundMusic.play();
+
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            console.log("Audio playback started successfully");
+          })
+          .catch((error) => {
+            console.error("Audio playback failed:", error);
+
+            // If autoplay is prevented, we'll try again on the next user interaction
+            const resumeAudio = () => {
+              if (backgroundMusic.paused) {
+                backgroundMusic
+                  .play()
+                  .catch((e) => console.warn("Still cannot play audio:", e));
+              }
+
+              // Only need to try once, so remove listeners after attempt
+              document.removeEventListener("click", resumeAudio);
+              document.removeEventListener("keydown", resumeAudio);
+              document.removeEventListener("touchstart", resumeAudio);
+            };
+
+            document.addEventListener("click", resumeAudio, { once: true });
+            document.addEventListener("keydown", resumeAudio, { once: true });
+            document.addEventListener("touchstart", resumeAudio, {
+              once: true,
+            });
+          });
+      }
+    }
+  };
+
+  // Try to start audio on various events
+  document.addEventListener("click", handleStartAudio, { once: true });
+  document.addEventListener("keydown", handleStartAudio, { once: true });
+  document.addEventListener("touchstart", handleStartAudio, { once: true });
+
+  // Show initial status
+  if (audioStatus) {
+    const isMuted = localStorage.getItem(MUTE_STORAGE_KEY) === "true";
+    audioStatus.textContent =
+      "Audio: " +
+      (backgroundMusic.readyState >= 3 ? "Ready" : "Loading") +
+      (isMuted ? " (Muted)" : "");
+  }
+};
+
+// Call the initialization function at the end of your file
+initializeAudio();
+
+console.log("Stored mute setting:", localStorage.getItem(MUTE_STORAGE_KEY));
+// To force unmute for testing, uncomment this line:
+// localStorage.removeItem(MUTE_STORAGE_KEY);
