@@ -55,13 +55,25 @@ export class ObstacleManager {
     const obstacleMesh = new THREE.Mesh(geometry, material);
     obstacleMesh.position.set(positionX, radius, OBSTACLE_SPAWN_Z);
 
-    // Add random rotation for visual variety
-    obstacleMesh.rotation.x = Math.random() * Math.PI;
-    obstacleMesh.rotation.y = Math.random() * Math.PI;
+    // Add random initial rotation
+    obstacleMesh.rotation.x = Math.random() * Math.PI * 2;
+    obstacleMesh.rotation.y = Math.random() * Math.PI * 2;
+    obstacleMesh.rotation.z = Math.random() * Math.PI * 2;
+
+    // Add random rotation speeds (both direction and magnitude)
+    const rotationSpeeds = {
+      x: (Math.random() * 2 - 1) * 3, // Random between -3 and 3
+      y: (Math.random() * 2 - 1) * 3,
+      z: (Math.random() * 2 - 1) * 3,
+    };
 
     // Add to scene and tracking array
     this.scene.add(obstacleMesh);
-    this.obstacles.push({ mesh: obstacleMesh, radius: radius });
+    this.obstacles.push({
+      mesh: obstacleMesh,
+      radius: radius,
+      rotationSpeeds: rotationSpeeds,
+    });
   }
 
   updateLanes(newLanes) {
@@ -82,10 +94,17 @@ export class ObstacleManager {
   }
 
   update(deltaTime, speed) {
+    // Move obstacles and remove those that are too far
     for (let i = this.obstacles.length - 1; i >= 0; i--) {
       const obstacle = this.obstacles[i];
       obstacle.mesh.position.z += speed * deltaTime;
 
+      // Apply the random rotations
+      obstacle.mesh.rotation.x += obstacle.rotationSpeeds.x * deltaTime;
+      obstacle.mesh.rotation.y += obstacle.rotationSpeeds.y * deltaTime;
+      obstacle.mesh.rotation.z += obstacle.rotationSpeeds.z * deltaTime;
+
+      // Remove if past despawn point
       if (obstacle.mesh.position.z > OBSTACLE_DESPAWN_Z) {
         this.scene.remove(obstacle.mesh);
         if (obstacle.mesh.geometry) obstacle.mesh.geometry.dispose();
