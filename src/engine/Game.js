@@ -383,6 +383,9 @@ export class Game {
     // --- Effect triggered ---
   }
 
+  /**
+   * Ends the game and handles game over logic
+   */
   endGame() {
     if (this.gameOver) return; // Prevent multiple calls
 
@@ -402,55 +405,32 @@ export class Game {
     if (this.username && this.username.trim() !== "") {
       this.saveScore()
         .then(() => {
-          // After saving score, update leaderboard with all scores showing the user's HIGHEST score
+          // After saving score, update leaderboard with all scores
           if (this.onLeaderboardUpdate) {
             try {
               // Update both leaderboards
               this.onLeaderboardUpdate(0, null, true); // Game over leaderboard
 
               // Also update the top-left in-game leaderboard to show latest data
-              // We need to wait a moment to ensure database has updated
               setTimeout(() => {
                 const inGameLeaderboard =
                   document.querySelector("#leaderboard ul");
                 if (inGameLeaderboard) {
-                  // Call with 5 as the limit for in-game display
-                  this.onLeaderboardUpdate(5, null, false);
+                  this.onLeaderboardUpdate(3, null, false, true); // Force refresh
                 }
               }, 500);
             } catch (error) {
               console.error("Error updating leaderboard on game over:", error);
-              // Show a fallback message if leaderboard update fails
-              const leaderboardContainer = document.querySelector(
-                "#gameOverLeaderboard .leaderboard-container ul"
-              );
-              if (leaderboardContainer) {
-                leaderboardContainer.innerHTML =
-                  "<li>Unable to load scores. Try again later.</li>";
-              }
             }
           }
         })
         .catch((error) => {
-          console.error("Error in saveScore during endGame:", error);
-          // Still try to update the leaderboard even if save fails
-          if (this.onLeaderboardUpdate) {
-            this.onLeaderboardUpdate(0, null, true);
-          }
+          console.error("Error saving score on game over:", error);
         });
-    } else {
-      // If no username, still update leaderboard
-      if (this.onLeaderboardUpdate) {
-        this.onLeaderboardUpdate(0, null, true);
-      }
     }
 
-    // Set user as offline in the database
-    if (this.username && this.username.trim() !== "") {
-      updateUserOnlineStatus(this.username, false).catch((err) =>
-        console.warn("Failed to set user offline:", err)
-      );
-    }
+    // DO NOT set user offline status here
+    // The user is still on the website, just finished a game
   }
 
   displayError(message) {
@@ -474,57 +454,21 @@ export class Game {
   }
 
   dispose() {
-    console.log("Disposing game resources...");
-    if (this.animationFrameId) {
-      cancelAnimationFrame(this.animationFrameId);
-      this.animationFrameId = null;
-    }
-    // Clear high score message timeout on dispose
-    if (this.highScoreMessageTimeout) {
-      clearTimeout(this.highScoreMessageTimeout);
-      this.highScoreMessageTimeout = null;
-    }
+    console.log("Game.dispose() called");
 
-    // --- Pause Music on Dispose (if not already paused by endGame) ---
-    if (this.backgroundMusic && !this.gameOver) {
-      // Only pause if dispose happens before game over (e.g., starting new game)
-      this.backgroundMusic.pause();
-      console.log("Background music paused on game dispose.");
-    }
-    // --- End Pause Music ---
+    // Clean up Three.js resources
+    this.renderer.dispose();
 
-    // --- Set user offline on dispose ---
-    // It's good practice to also try setting offline here,
-    // especially if the game is disposed before 'endGame' is fully processed
-    // or if the user closes the tab before 'endGame' completes its async operations.
-    if (this.username && !this.gameOver) {
-      // Only set offline here if game didn't naturally end
-      // because endGame already handles setting offline.
-      console.log(
-        "Setting user offline during dispose (game didn't end normally)."
-      );
-      updateUserOnlineStatus(this.username, false).catch((err) =>
-        console.warn("Failed to set user offline during dispose:", err)
-      );
-    }
-    // --- End set offline ---
+    // Clear any running intervals/timeouts
+    cancelAnimationFrame(this.animationFrameId);
 
-    if (this.player) this.player.dispose();
-    if (this.obstacleManager) this.obstacleManager.dispose();
-    if (this.city) this.city.dispose();
-    if (this.renderer) this.renderer.dispose();
-    if (this.input) this.input.dispose();
+    // Remove event listeners
+    this.input.removeEventListeners();
 
-    if (window.game === this) {
-      window.game = null;
-    }
-    console.log("Game disposed.");
+    // DO NOT set user offline status here either
+    // This happens when starting a new game, the user is still online
 
-    // Clear milestone message timeout on dispose
-    if (this.milestoneMessageTimeout) {
-      clearTimeout(this.milestoneMessageTimeout);
-      this.milestoneMessageTimeout = null;
-    }
+    this.disposed = true;
   }
 
   updateScore(points = 1) {
@@ -664,5 +608,68 @@ export class Game {
     } finally {
       this.isSavingScore = false;
     }
+  };
+
+  /**
+   * Updates the leaderboard in the game over modal
+   * @param {Array} scores - Array of score objects
+   */
+  updateGameOverLeaderboard = (scores) => {
+    if (!scores || !Array.isArray(scores) || scores.length === 0) {
+      return;
+    }
+
+    const leaderboardList = document.querySelector(
+      "#gameOverLeaderboard .leaderboard-container ul"
+    );
+    if (!leaderboardList) return;
+
+    // Clear current entries
+    leaderboardList.innerHTML = "";
+
+    // Log scores data to verify is_online field is present
+    console.log("Game over leaderboard data:", scores);
+
+    // Add entries for top performers
+    scores.forEach((entry, index) => {
+      const listItem = document.createElement("li");
+
+      // Create player info container (left-aligned)
+      const playerInfo = document.createElement("div");
+      playerInfo.className = "player-info";
+
+      // Create online status indicator with proper class
+      const onlineIndicator = document.createElement("span");
+      // Make sure we're applying the online/offline class properly
+      onlineIndicator.className = `online-indicator ${
+        entry.is_online ? "online" : "offline"
+      }`;
+
+      // Create rank and username span
+      const rankAndName = document.createElement("span");
+      rankAndName.textContent = `${index + 1}. ${entry.username}`;
+
+      // Create score span (right-aligned)
+      const scoreSpan = document.createElement("span");
+      scoreSpan.className = "score";
+      scoreSpan.textContent = entry.score;
+
+      // Highlight if this is the current user
+      if (entry.username === this.username) {
+        listItem.classList.add("current-user");
+        // Force current user to show as online
+        onlineIndicator.className = "online-indicator online";
+      }
+
+      // Add elements to player info
+      playerInfo.appendChild(onlineIndicator);
+      playerInfo.appendChild(rankAndName);
+
+      // Add player info and score to list item
+      listItem.appendChild(playerInfo);
+      listItem.appendChild(scoreSpan);
+
+      leaderboardList.appendChild(listItem);
+    });
   };
 }

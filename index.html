@@ -68,21 +68,32 @@
         display: inline-block;
         width: 8px;
         height: 8px;
-        background-color: #00ff00; /* Bright green */
-        border-radius: 50%; /* Make it a circle */
-        margin-right: 6px; /* Space between dot and text */
-        box-shadow: 0 0 3px #00ff00; /* Optional glow */
-        flex-shrink: 0; /* Prevent shrinking */
-      }
-      .offline-indicator {
-        /* Optional: Style for offline users if desired */
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        background-color: #555555; /* Dark gray */
         border-radius: 50%;
-        margin-right: 6px;
-        flex-shrink: 0;
+        margin-right: 5px;
+        vertical-align: middle;
+      }
+
+      /* Style for online users */
+      .online-indicator.online {
+        background-color: #00ff00; /* Bright green */
+        box-shadow: 0 0 5px #00ff00; /* Subtle glow */
+      }
+
+      /* Style for offline users */
+      .online-indicator.offline {
+        background-color: #555555; /* Gray */
+      }
+
+      /* Add to both leaderboards */
+      #leaderboard li,
+      #gameOverLeaderboard li {
+        display: flex;
+        align-items: center;
+      }
+
+      /* Game over leaderboard online indicators */
+      #gameOverLeaderboard .online-indicator {
+        margin-right: 8px; /* Slightly larger margin for game over screen */
       }
       /* Add styles for the username display */
       #currentUsername {
@@ -191,12 +202,21 @@
         margin: 0;
       }
       #gameOverLeaderboard li {
+        display: flex;
+        align-items: center;
         padding: 8px 5px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         font-size: 0.9rem;
+      }
+      #gameOverLeaderboard .player-info {
         display: flex;
-        justify-content: space-between;
         align-items: center;
+        flex-grow: 1;
+        text-align: left;
+      }
+      #gameOverLeaderboard .score {
+        margin-left: auto;
+        text-align: right;
       }
       #gameOverLeaderboard li:last-child {
         border-bottom: none;

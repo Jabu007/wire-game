@@ -255,71 +255,38 @@ export const fetchUserHighScore = async (username) => {
 
 // --- Function to update user's online status ---
 export const updateUserOnlineStatus = async (username, isOnline) => {
-  // Ensure configuration is set
-  if (
-    supabaseUrl === "YOUR_SUPABASE_URL" ||
-    supabaseKey === "YOUR_SUPABASE_ANON_KEY" ||
-    !supabaseUrl || // Add explicit check for missing vars
-    !supabaseKey
-  ) {
-    console.warn(
-      // Use warn instead of log for skipped operations
-      "Skipping online status update: Supabase not configured or keys missing."
-    );
-    return;
-  }
-
-  // Validate input
-  if (
-    !username ||
-    typeof username !== "string" ||
-    username.trim().length === 0
-  ) {
-    console.error("Invalid username provided for online status update.");
-    return;
-  }
-  if (typeof isOnline !== "boolean") {
-    console.error("Invalid online status provided (must be boolean).");
-    return;
-  }
-
-  const trimmedUsername = username.trim();
-
   try {
-    console.log(
-      `Attempting to upsert online status to ${isOnline} for user ${trimmedUsername}` // Changed log message slightly
-    );
+    console.log(`Setting ${username} online status to: ${isOnline}`);
 
-    // Use upsert: Insert if user doesn't exist, update if they do.
-    const { data, error } = await supabase.from("high_scores").upsert(
-      // Capture data as well
-      { username: trimmedUsername, is_online: isOnline },
-      {
-        onConflict: "username", // Specify the conflict target
-        // Ensure the user has INSERT (username, is_online) and UPDATE (is_online) permissions via RLS
-      }
-    );
+    // First, check if the user already exists in the high_scores table
+    const { data: existingUser } = await supabase
+      .from("high_scores")
+      .select("username")
+      .eq("username", username)
+      .maybeSingle();
 
-    if (error) {
-      console.error(
-        `Error upserting online status for ${trimmedUsername}:`,
-        error.message, // Log the specific error message
-        " | Code:",
-        error.code, // Log Supabase error code if available
-        " | Details:",
-        error.details // Log details if available
-      );
+    if (existingUser) {
+      // User exists, update their online status
+      const { error } = await supabase
+        .from("high_scores")
+        .update({ is_online: isOnline })
+        .eq("username", username);
+
+      if (error) throw error;
     } else {
-      console.log(
-        `Online status for ${trimmedUsername} set to ${isOnline} successfully. Response data:`,
-        data // Log response data on success (might be null)
-      );
+      // User doesn't exist, insert with default score of 0
+      const { error } = await supabase
+        .from("high_scores")
+        .insert({ username, score: 0, is_online: isOnline });
+
+      if (error) throw error;
     }
-  } catch (error) {
-    console.error(
-      `An unexpected error occurred during updateUserOnlineStatus for ${trimmedUsername}:`, // Add username to catch block log
-      error
+
+    console.log(
+      `Successfully updated ${username}'s online status to ${isOnline}`
     );
+  } catch (error) {
+    console.error("Error updating user online status:", error);
   }
 };
 // --- End update user online status function ---

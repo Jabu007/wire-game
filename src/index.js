@@ -57,119 +57,107 @@ let leaderboardChannel = null;
 const elements = getElements();
 
 // --- Leaderboard Update Function ---
-/**
- * Fetches scores and updates the leaderboard UI.
- * @param {number | null} [limit=3] - Max scores to display. Shows all if null or 0.
- * @param {number} [currentScore=0] - The player's current score for contextual display.
- * @param {boolean} [isGameOver=false] - Whether this is being called from game over screen.
- */
-const updateLeaderboard = async (
-  limit = 3,
-  currentScore = 0,
-  isGameOver = false
-) => {
-  const leaderboardElement = isGameOver
-    ? document.querySelector("#gameOverLeaderboard .leaderboard-container ul")
-    : document.querySelector("#leaderboard ul");
+function renderLeaderboard(scores, limit = 5) {
+  if (!scores || !leaderboardElement) return;
 
-  if (!leaderboardElement) {
-    console.error("Leaderboard element not found, cannot update.");
-    return;
-  }
+  // Clear current entries
+  const leaderboardList = leaderboardElement.querySelector("ul");
+  if (!leaderboardList) return;
 
-  try {
-    // Show loading state
-    leaderboardElement.innerHTML = "<li>Loading scores...</li>";
+  leaderboardList.innerHTML = "";
 
-    // Fetch scores from the database
-    const scores = await getScores();
+  // Get current username
+  const currentUsername = localStorage.getItem(USERNAME_STORAGE_KEY);
 
-    if (!scores || scores.length === 0) {
-      leaderboardElement.innerHTML = "<li>No scores yet!</li>";
-      return;
+  // Add entries
+  scores.slice(0, limit).forEach((entry, index) => {
+    const listItem = document.createElement("li");
+
+    // Create online indicator
+    const onlineIndicator = document.createElement("span");
+    onlineIndicator.className = `online-indicator ${
+      entry.is_online ? "online" : "offline"
+    }`;
+
+    // Create text content
+    const rankSpan = document.createElement("span");
+    rankSpan.textContent = `${index + 1}. `;
+
+    const usernameSpan = document.createElement("span");
+    usernameSpan.textContent = `${entry.username}:`;
+
+    // Create a spacer span
+    const spacerSpan = document.createElement("span");
+    spacerSpan.style.display = "inline-block";
+    spacerSpan.style.width = "8px"; // Adjust width for desired spacing
+    spacerSpan.innerHTML = "&nbsp;"; // Non-breaking space for compatibility
+
+    const scoreSpan = document.createElement("span");
+    scoreSpan.textContent = entry.score;
+
+    // Highlight if current user
+    if (entry.username === currentUsername) {
+      usernameSpan.classList.add("current-player-highlight");
     }
 
-    // Sort scores by score (highest first)
-    scores.sort((a, b) => b.score - a.score);
+    // Add elements to list item
+    listItem.appendChild(onlineIndicator);
+    listItem.appendChild(rankSpan);
+    listItem.appendChild(usernameSpan);
+    listItem.appendChild(spacerSpan); // Add the spacer
+    listItem.appendChild(scoreSpan);
 
-    // Create HTML for the leaderboard
-    let html = "";
+    leaderboardList.appendChild(listItem);
+  });
+}
 
-    if (isGameOver || limit === 0) {
-      // For game over screen or when showing all scores
-      displayAllScores(
-        scores,
-        html,
-        leaderboardElement,
-        currentUsername,
-        currentScore,
-        isGameOver
-      );
-    } else {
-      // For in-game leaderboard, show context (player above and below)
-      displayContextScores(
-        scores,
-        html,
-        leaderboardElement,
-        currentUsername,
-        currentScore,
-        limit
-      );
+// Modify the updateLeaderboard function to show contextual view with current user in middle
+async function updateLeaderboard(
+  limit = 3,
+  currentScore = 0,
+  isGameOver = false,
+  forceRefresh = false
+) {
+  try {
+    // If forceRefresh is true, bypass any caching
+    const scores = forceRefresh
+      ? await fetchLeaderboard(true)
+      : await getScores();
+
+    if (scores && scores.length > 0) {
+      if (isGameOver) {
+        // Update the game over leaderboard
+        if (currentGame) {
+          currentGame.updateGameOverLeaderboard(scores);
+        }
+      } else {
+        // Update the in-game leaderboard with contextual display
+        displayContextualLeaderboard(scores, limit, currentScore);
+      }
     }
   } catch (error) {
     console.error("Error updating leaderboard:", error);
-    leaderboardElement.innerHTML = "<li>Error loading scores</li>";
   }
-};
+}
 
-/**
- * Displays all scores in the leaderboard
- */
-const displayAllScores = (
-  scores,
-  html,
-  leaderboardElement,
-  currentUsername,
-  currentScore,
-  isGameOver = false
-) => {
-  // Clone the scores array to avoid mutation
-  let displayScores = [...scores];
+// Add this new function for contextual display
+function displayContextualLeaderboard(scores, limit = 3, currentScore = 0) {
+  if (!scores || !leaderboardElement) return;
 
-  // Sort by score (highest first)
-  displayScores.sort((a, b) => b.score - a.score);
+  const leaderboardList = leaderboardElement.querySelector("ul");
+  if (!leaderboardList) return;
 
-  // Generate the HTML for all leaderboard entries
-  displayScores.forEach((score, index) => {
-    const isCurrentUser = score.username === currentUsername;
-    const displayClass = isCurrentUser ? 'class="current-user"' : "";
+  leaderboardList.innerHTML = "";
 
-    // Format entries with their actual position numbers
-    html += `<li ${displayClass}>
-      ${index + 1}. ${score.username} - ${score.score}
-    </li>`;
-  });
+  // Get current username
+  const currentUsername = localStorage.getItem(USERNAME_STORAGE_KEY);
 
-  leaderboardElement.innerHTML = html;
-};
-
-/**
- * Helper function to display contextual scores (for in-game leaderboard)
- */
-const displayContextScores = (
-  scores,
-  html,
-  leaderboardElement,
-  currentUsername,
-  currentScore,
-  limit
-) => {
-  // Find the user's actual position based on their high score in the DB
+  // Find the user's current position based on their high score
   const userScore =
     scores.find((score) => score.username === currentUsername)?.score || 0;
-
-  // Create a temporary array with user's current position
   const tempScores = [...scores];
+
+  // Sort by score (highest first)
   tempScores.sort((a, b) => b.score - a.score);
 
   // Find user index in the sorted list
@@ -179,15 +167,18 @@ const displayContextScores = (
 
   // If not found and have a score, calculate where they would be
   if (userIndex === -1 && userScore > 0) {
-    // User has a score but wasn't found - add them to the array
-    tempScores.push({ username: currentUsername, score: userScore });
+    tempScores.push({
+      username: currentUsername,
+      score: userScore,
+      is_online: true,
+    });
     tempScores.sort((a, b) => b.score - a.score);
     userIndex = tempScores.findIndex(
       (score) => score.username === currentUsername
     );
   }
 
-  // Calculate start and end indices
+  // Calculate start and end indices to center around user
   const halfLimit = Math.floor(limit / 2);
   let startIdx = Math.max(0, userIndex - halfLimit);
   const endIdx = Math.min(tempScores.length - 1, startIdx + limit - 1);
@@ -197,21 +188,52 @@ const displayContextScores = (
     startIdx = Math.max(0, endIdx - limit + 1);
   }
 
-  // Generate HTML for context scores
+  // Generate list items
   for (let i = startIdx; i <= endIdx; i++) {
     if (i < tempScores.length) {
-      const score = tempScores[i];
-      const isCurrentUser = score.username === currentUsername;
+      const entry = tempScores[i];
+      const isCurrentUser = entry.username === currentUsername;
 
-      html += `<li ${isCurrentUser ? 'class="current-user"' : ""}>
-        ${i + 1}. ${score.username} - ${score.score}
-      </li>`;
+      const listItem = document.createElement("li");
+
+      // Create online indicator
+      const onlineIndicator = document.createElement("span");
+      onlineIndicator.className = `online-indicator ${
+        entry.is_online ? "online" : "offline"
+      }`;
+
+      // Create text content
+      const rankSpan = document.createElement("span");
+      rankSpan.textContent = `${i + 1}. `;
+
+      const usernameSpan = document.createElement("span");
+      usernameSpan.textContent = `${entry.username}:`;
+
+      // Create a spacer span
+      const spacerSpan = document.createElement("span");
+      spacerSpan.style.display = "inline-block";
+      spacerSpan.style.width = "8px"; // Adjust width for desired spacing
+      spacerSpan.innerHTML = "&nbsp;"; // Non-breaking space for compatibility
+
+      const scoreSpan = document.createElement("span");
+      scoreSpan.textContent = entry.score;
+
+      // Highlight if current user
+      if (isCurrentUser) {
+        listItem.classList.add("current-player-highlight");
+      }
+
+      // Add elements to list item
+      listItem.appendChild(onlineIndicator);
+      listItem.appendChild(rankSpan);
+      listItem.appendChild(usernameSpan);
+      listItem.appendChild(spacerSpan); // Add the spacer
+      listItem.appendChild(scoreSpan);
+
+      leaderboardList.appendChild(listItem);
     }
   }
-
-  leaderboardElement.innerHTML = html;
-};
-// --- End Leaderboard Update Function ---
+}
 
 // --- Function to start the game ---
 const handleStartGame = async () => {
@@ -249,12 +271,13 @@ const handleStartGame = async () => {
   currentUsername = username;
   localStorage.setItem(USERNAME_STORAGE_KEY, currentUsername); // Save username
 
-  // Set user online status to true and update leaderboard (shows top 5 initially)
+  // Set user online status to true
   try {
-    await updateUserOnlineStatus(currentUsername, true);
-    await updateLeaderboard(); // Initial update uses default limit (5)
+    console.log("Setting user online status to true for:", username);
+    await updateUserOnlineStatus(username, true);
+    await updateLeaderboard(); // Update leaderboard to reflect online status
   } catch (error) {
-    console.error("Failed to set user online status before game start:", error);
+    console.error("Failed to set user online status:", error);
   }
 
   // Fetch user's high score
@@ -368,7 +391,7 @@ console.log("index.js: Subscribing to real-time leaderboard updates...");
 leaderboardChannel = subscribeToLeaderboardChanges(() => updateLeaderboard());
 
 // --- Cleanup Subscription on Page Unload ---
-window.addEventListener("beforeunload", () => {
+window.addEventListener("beforeunload", async () => {
   console.log("index.js: Unsubscribing from leaderboard before page unload...");
   unsubscribeFromLeaderboard(leaderboardChannel);
 
@@ -378,12 +401,11 @@ window.addEventListener("beforeunload", () => {
     // Note: synchronous XHR/fetch is deprecated and unreliable here.
     // navigator.sendBeacon might be an option, but Supabase client uses async.
     // This async call is *not guaranteed* to complete.
-    updateUserOnlineStatus(currentUsername, false).catch((err) => {
-      console.warn(
-        "Failed to set user offline before unload (may not complete):",
-        err
-      );
-    });
+    try {
+      await updateUserOnlineStatus(currentUsername, false);
+    } catch (error) {
+      console.error("Error setting user offline on page unload:", error);
+    }
   }
 
   // Also dispose the game if it's running
