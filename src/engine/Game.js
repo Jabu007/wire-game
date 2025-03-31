@@ -213,6 +213,10 @@ export class Game {
     if (this.milestoneMessageElement)
       this.milestoneMessageElement.style.display = "none"; // Ensure message is hidden
 
+    // Hide both the game over modal and the blur overlay
+    this.gameOverElement.style.display = "none";
+    document.getElementById("gameOverBlurOverlay").style.display = "none";
+
     // Restart animation
     this.clock.start();
     this.animate();
@@ -386,10 +390,9 @@ export class Game {
     this.tapToRestartEnabled = false; // Disable tap to restart
     console.log(`Game Over! Final Score for ${this.username}: ${this.score}`);
 
-    // Update UI
-    if (this.gameOverElement) {
-      this.gameOverElement.style.display = "block";
-    }
+    // Show both the game over modal and the blur overlay
+    this.gameOverElement.style.display = "block";
+    document.getElementById("gameOverBlurOverlay").style.display = "block";
 
     if (this.finalScoreElement) {
       this.finalScoreElement.textContent = `Final Score: ${this.score}`;

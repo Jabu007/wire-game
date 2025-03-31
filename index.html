@@ -119,6 +119,18 @@
         color: #fff;
       }
       /* --- End Mute Button Style --- */
+      #gameOverBlurOverlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(5px);
+        -webkit-backdrop-filter: blur(5px);
+        z-index: 99; /* Just below the modal but above game elements */
+        display: none; /* Initially hidden */
+      }
       #gameOver {
         position: absolute;
         top: 50%;
@@ -137,7 +149,7 @@
         max-height: 80vh;
         overflow-y: auto;
         box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-        pointer-events: auto; /* Ensure all elements inside can be interacted with */
+        pointer-events: auto;
       }
       #gameOver h1 {
         color: #ff3333;
@@ -534,6 +546,8 @@
       <!-- Add the milestone message element after the high score message -->
       <div id="milestoneMessage">1000!!!</div>
       <!-- End Milestone Message Element -->
+      <!-- Add this right before the game over div in the HTML -->
+      <div id="gameOverBlurOverlay"></div>
       <div id="gameOver">
         <h1>GAME OVER</h1>
         <div id="finalScore">Final Score: 0</div>
