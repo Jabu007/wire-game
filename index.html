@@ -99,10 +99,10 @@
       /* --- Style for Mute Button --- */
       #muteButton {
         position: absolute;
-        top: 40px; /* Position below the username */
+        top: 50px; /* Increased from 40px to 50px for more spacing */
         right: 10px;
-        padding: 4px 8px;
-        font-size: 12px;
+        padding: 6px 10px;
+        font-size: 16px; /* Increased for better icon visibility */
         background-color: #333;
         color: #ccc;
         border: 1px solid #555;
@@ -110,6 +110,9 @@
         cursor: pointer;
         pointer-events: auto; /* Allow clicking */
         z-index: 100; /* Ensure it's clickable */
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
       #muteButton:hover {
         background-color: #444;
@@ -285,7 +288,39 @@
       </div>
       <div id="currentUsername"></div>
       <!-- Add the Mute Button -->
-      <!-- <button id="muteButton" aria-label="Mute Background Music">Mute</button> -->
+      <button id="muteButton" aria-label="Mute Background Music">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          fill="currentColor"
+          viewBox="0 0 16 16"
+          class="volume-icon"
+        >
+          <path
+            d="M11.536 14.01A8.473 8.473 0 0 0 14.026 8a8.473 8.473 0 0 0-2.49-6.01l-.708.707A7.476 7.476 0 0 1 13.025 8c0 2.071-.84 3.946-2.197 5.303l.708.707z"
+          />
+          <path
+            d="M10.121 12.596A6.48 6.48 0 0 0 12.025 8a6.48 6.48 0 0 0-1.904-4.596l-.707.707A5.483 5.483 0 0 1 11.025 8a5.483 5.483 0 0 1-1.61 3.89l.706.706z"
+          />
+          <path
+            d="M8.707 11.182A4.486 4.486 0 0 0 10.025 8a4.486 4.486 0 0 0-1.318-3.182L8 5.525A3.489 3.489 0 0 1 9.025 8 3.49 3.49 0 0 1 8 10.475l.707.707zM6.717 3.55A.5.5 0 0 1 7 4v8a.5.5 0 0 1-.812.39L3.825 10H1.5A.5.5 0 0 1 1 9.5v-3A.5.5 0 0 1 1.5 6h2.325l2.363-1.89a.5.5 0 0 1 .529-.06z"
+          />
+        </svg>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          fill="currentColor"
+          viewBox="0 0 16 16"
+          class="mute-icon"
+          style="display: none"
+        >
+          <path
+            d="M6.717 3.55A.5.5 0 0 1 7 4v8a.5.5 0 0 1-.812.39L3.825 10H1.5A.5.5 0 0 1 1 9.5v-3A.5.5 0 0 1 1.5 6h2.325l2.363-1.89a.5.5 0 0 1 .529-.06zm7.137 2.096a.5.5 0 0 1 0 .708L12.207 8l1.647 1.646a.5.5 0 0 1-.708.708L11.5 8.707l-1.646 1.647a.5.5 0 0 1-.708-.708L10.793 8 9.146 6.354a.5.5 0 1 1 .708-.708L11.5 7.293l1.646-1.647a.5.5 0 0 1 .708 0z"
+          />
+        </svg>
+      </button>
       <!-- End Mute Button -->
       <!-- Add the High Score Message Element -->
       <div id="highScoreMessage">New High Score!</div>
@@ -305,7 +340,7 @@
     <!-- Canvas will be added here by Three.js -->
 
     <!-- Add the Audio Element (outside UI, but controlled by JS) -->
-    <!-- <audio id="backgroundMusic" src="/music.mp3" loop preload="auto"></audio> -->
+    <audio id="backgroundMusic" src="/lofi.mp3" loop preload="auto"></audio>
 
     <!-- Update Main game script path -->
     <script type="module" src="/src/index.js"></script>

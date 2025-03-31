@@ -44,10 +44,10 @@ const elements = getElements();
 // --- Leaderboard Update Function ---
 /**
  * Fetches scores and updates the leaderboard UI.
- * @param {number | null} [limit=5] - Max scores to display. Shows all if null or 0.
+ * @param {number | null} [limit=3] - Max scores to display. Shows all if null or 0.
  * @param {number} [currentScore=0] - The player's current score for contextual display.
  */
-const updateLeaderboard = async (limit = 5, currentScore = 0) => {
+const updateLeaderboard = async (limit = 3, currentScore = 0) => {
   if (!leaderboardElement) {
     console.error("Leaderboard element not found, cannot update.");
     return;
@@ -83,15 +83,16 @@ const updateLeaderboard = async (limit = 5, currentScore = 0) => {
             ? '<span class="online-indicator" aria-label="Online"></span>'
             : '<span class="offline-indicator" aria-label="Offline"></span>';
 
-          // Highlight the user's position
+          // Highlight the user's position - but only apply to username and score, not position number
           const isUserEntry =
             entry.username.toLowerCase() === currentUsername.toLowerCase();
-          const positionClass = isUserEntry ? 'class="player-position"' : "";
 
-          // Add position number (1-based index)
-          leaderboardHTML += `<li ${positionClass}>${onlineIndicator} ${
-            index + 1
-          }. ${safeUsername} - ${entry.score}</li>`;
+          // Create HTML with position number outside the highlighted span
+          leaderboardHTML += `<li>${onlineIndicator} ${index + 1}. ${
+            isUserEntry ? '<span class="player-position">' : ""
+          }${safeUsername} - ${entry.score}${
+            isUserEntry ? "</span>" : ""
+          }</li>`;
         });
 
         leaderboardHTML += "</ul>";
@@ -136,11 +137,11 @@ const updateLeaderboard = async (limit = 5, currentScore = 0) => {
         )
       : -1;
 
-    // If user not found in leaderboard, show top 5 scores
+    // If user not found in leaderboard, show top 3 scores
     if (userPosition === -1) {
-      const displayScores = allScores.slice(0, 5);
+      const displayScores = allScores.slice(0, 3); // Show only top 3 instead of 5
 
-      let leaderboardHTML = `<strong>Top 5 Scores:</strong><ul>`;
+      let leaderboardHTML = `<strong>Top 3 Scores:</strong><ul>`; // Update title to reflect 3 scores
 
       displayScores.forEach((entry, index) => {
         const safeUsername = entry.username
@@ -161,9 +162,9 @@ const updateLeaderboard = async (limit = 5, currentScore = 0) => {
       return;
     }
 
-    // Determine which scores to display (2 above, user, 2 below)
-    const startIndex = Math.max(0, userPosition - 2);
-    const endIndex = Math.min(allScores.length, startIndex + 5);
+    // Determine which scores to display (1 above, user, 1 below)
+    const startIndex = Math.max(0, userPosition - 1); // Only 1 above instead of 2
+    const endIndex = Math.min(allScores.length, startIndex + 3); // Show 3 total instead of 5
     const displayScores = allScores.slice(startIndex, endIndex);
 
     // Build the HTML
@@ -179,12 +180,14 @@ const updateLeaderboard = async (limit = 5, currentScore = 0) => {
         ? '<span class="online-indicator" aria-label="Online"></span>'
         : '<span class="offline-indicator" aria-label="Offline"></span>';
 
-      // Highlight the user's position
+      // Highlight only username and score, not position number
       const isUserEntry =
         entry.username.toLowerCase() === currentUsername.toLowerCase();
-      const positionClass = isUserEntry ? 'class="player-position"' : "";
 
-      leaderboardHTML += `<li ${positionClass}>${onlineIndicator} ${actualPosition}. ${safeUsername} - ${entry.score}</li>`;
+      // Create HTML with position number outside the highlighted span
+      leaderboardHTML += `<li>${onlineIndicator} ${actualPosition}. ${
+        isUserEntry ? '<span class="player-position">' : ""
+      }${safeUsername} - ${entry.score}${isUserEntry ? "</span>" : ""}</li>`;
     });
 
     leaderboardHTML += "</ul>";
@@ -195,25 +198,6 @@ const updateLeaderboard = async (limit = 5, currentScore = 0) => {
   }
 };
 // --- End Leaderboard Update Function ---
-
-// --- Function to handle Mute Toggle ---
-const handleMuteToggle = () => {
-  if (!backgroundMusic || !muteButton) return;
-
-  const isMuted = backgroundMusic.muted;
-  backgroundMusic.muted = !isMuted;
-  muteButton.textContent = backgroundMusic.muted ? "Unmute" : "Mute";
-  muteButton.setAttribute(
-    "aria-label",
-    backgroundMusic.muted ? "Unmute Background Music" : "Mute Background Music"
-  );
-  try {
-    localStorage.setItem(MUTE_STORAGE_KEY, backgroundMusic.muted.toString()); // Store as string
-  } catch (error) {
-    console.error("Error saving mute state to localStorage:", error);
-  }
-};
-// --- End Mute Toggle Function ---
 
 // --- Function to start the game ---
 const handleStartGame = async () => {
@@ -368,14 +352,6 @@ if (usernameInput) {
   console.error("index.js: Could not find username input element.");
 }
 
-// --- Add Mute Button Listener ---
-if (muteButton) {
-  muteButton.addEventListener("click", handleMuteToggle);
-} else {
-  console.error("index.js: Could not find mute button element.");
-}
-// --- End Mute Button Listener ---
-
 // --- Check for saved username on load ---
 if (usernameInput) {
   try {
@@ -395,25 +371,45 @@ if (usernameInput) {
 // --- End check for saved username ---
 
 // --- Initialize Mute State from Local Storage ---
-if (backgroundMusic && muteButton) {
-  try {
-    const savedMuteState = localStorage.getItem(MUTE_STORAGE_KEY) === "true"; // Compare with 'true' string
-    backgroundMusic.muted = savedMuteState;
-    muteButton.textContent = savedMuteState ? "Unmute" : "Mute";
-    muteButton.setAttribute(
-      "aria-label",
-      savedMuteState ? "Unmute Background Music" : "Mute Background Music"
-    );
-    console.log(`Initial mute state set to: ${savedMuteState}`);
-  } catch (error) {
-    console.error("Error reading mute state from localStorage:", error);
-    // Default to not muted if error occurs
-    backgroundMusic.muted = false;
-    muteButton.textContent = "Mute";
-    muteButton.setAttribute("aria-label", "Mute Background Music");
+const initializeMuteState = () => {
+  if (!backgroundMusic || !muteButton) return;
+
+  // Check if muted state is stored
+  const isMuted = localStorage.getItem(MUTE_STORAGE_KEY) === "true";
+
+  // Set initial state
+  backgroundMusic.muted = isMuted;
+
+  // Update button display
+  const volumeIcon = muteButton.querySelector(".volume-icon");
+  const muteIcon = muteButton.querySelector(".mute-icon");
+
+  if (isMuted) {
+    volumeIcon.style.display = "none";
+    muteIcon.style.display = "block";
+  } else {
+    volumeIcon.style.display = "block";
+    muteIcon.style.display = "none";
   }
-}
-// --- End Initialize Mute State ---
+
+  // Add click handler
+  muteButton.addEventListener("click", () => {
+    backgroundMusic.muted = !backgroundMusic.muted;
+
+    // Toggle icon display
+    if (backgroundMusic.muted) {
+      volumeIcon.style.display = "none";
+      muteIcon.style.display = "block";
+    } else {
+      volumeIcon.style.display = "block";
+      muteIcon.style.display = "none";
+    }
+
+    // Save state
+    localStorage.setItem(MUTE_STORAGE_KEY, backgroundMusic.muted);
+    console.log(`Music ${backgroundMusic.muted ? "muted" : "unmuted"}`);
+  });
+};
 
 // --- Initial Leaderboard Load & Subscription ---
 console.log("index.js: Performing initial leaderboard load...");
@@ -455,3 +451,7 @@ window.addEventListener("beforeunload", () => {
   }
 });
 // --- End Cleanup ---
+
+// --- Call the initialization function ---
+// Initialize mute state and button
+initializeMuteState();
