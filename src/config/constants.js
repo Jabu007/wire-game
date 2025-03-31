@@ -115,6 +115,7 @@ export const getElements = () => ({
   currentUsernameElement: document.getElementById("currentUsername"),
   gameUiElement: document.getElementById("gameUi"),
   highScoreMessageElement: document.getElementById("highScoreMessage"),
+  milestoneMessageElement: document.getElementById("milestoneMessage"),
 });
 
 // Device Detection

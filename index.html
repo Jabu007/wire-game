@@ -198,22 +198,28 @@
         height: 1em; /* Reserve space */
       }
 
-      /* --- Style for the new Game Title --- */
+      /* --- Game Title Style --- */
       #gameTitle {
-        position: absolute;
-        top: 20px; /* Adjust vertical position as needed */
-        left: 50%;
-        transform: translateX(-50%);
-        font-family: "Courier New", Courier, monospace; /* Monospaced font */
-        font-size: 2.5em; /* Reduced font size */
-        color: #ffffff; /* Bright white base color */
-        /* Reduced Glowing effect */
-        text-shadow: 0 0 4px #fff, /* Subtle inner white */ 0 0 8px #fff,
-          /* Slightly wider white */ 0 0 12px #00eeee,
-          /* Fainter cyan */ 0 0 20px #00aaaa; /* Darker, wider cyan */
-        z-index: 100; /* Ensure it's above other elements */
-        pointer-events: none; /* Make it non-interactive */
-        white-space: nowrap; /* Prevent wrapping on smaller screens */
+        font-size: 2.5rem;
+        margin-bottom: 2rem;
+        color: #00ff00; /* Bright green to match the game's aesthetic */
+        text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00; /* Glow effect */
+        text-align: center;
+        font-family: monospace;
+        letter-spacing: 2px;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00;
+        }
+        50% {
+          text-shadow: 0 0 15px #00ff00, 0 0 30px #00ff00;
+        }
+        100% {
+          text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00;
+        }
       }
       /* --- End Game Title Style --- */
 
@@ -255,6 +261,25 @@
         font-weight: bold;
         text-shadow: 0 0 2px #00ff00; /* Subtle glow */
       }
+
+      /* --- Style for Milestone Message --- */
+      #milestoneMessage {
+        position: absolute;
+        top: 35%; /* Position below the high score message */
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 2em; /* Slightly smaller than high score message */
+        font-weight: bold;
+        color: #ffff00; /* Yellow color to differentiate from high score */
+        text-shadow: 0 0 5px #fff, 0 0 10px #ffff00, 0 0 15px #ffff00; /* Glowing effect */
+        z-index: 101; /* Same z-index as high score message */
+        pointer-events: none;
+        display: none; /* Initially hidden */
+        animation: fadeInOut 2s ease-in-out forwards; /* Animation for display */
+        white-space: nowrap; /* Ensure text stays on one line */
+        max-width: 90vw; /* Limit width to prevent overflow */
+      }
+      /* --- End Milestone Message Style --- */
     </style>
   </head>
   <body>
@@ -263,7 +288,7 @@
 
     <!-- Username Input Overlay -->
     <div id="usernameOverlay">
-      <!-- <h1>Jabu'sWireframe Runner</h1> -->
+      <h1 id="gameTitle">Jabu's Wire Game</h1>
       <label for="usernameInput" class="sr-only">Enter Username:</label>
       <!-- Hidden label for accessibility -->
       <input
@@ -325,6 +350,9 @@
       <!-- Add the High Score Message Element -->
       <div id="highScoreMessage">New High Score!</div>
       <!-- End High Score Message Element -->
+      <!-- Add the milestone message element after the high score message -->
+      <div id="milestoneMessage">1000!!!</div>
+      <!-- End Milestone Message Element -->
       <div id="gameOver">
         <h1>GAME OVER</h1>
         <div id="finalScore">Final Score: 0</div>

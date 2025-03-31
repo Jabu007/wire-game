@@ -50,6 +50,8 @@ export class Game {
     this.isSavingScore = false; // Flag to prevent multiple saves
     this.highScoreMessageShownThisRun = false; // Flag for high score message
     this.highScoreMessageTimeout = null; // Timeout ID for hiding the message
+    this.lastMilestoneReached = 0; // Track the last milestone reached
+    this.milestoneMessageTimeout = null; // Timeout ID for hiding the milestone message
 
     // --- Add Audio Reference ---
     this.backgroundMusic = document.getElementById("backgroundMusic");
@@ -62,6 +64,7 @@ export class Game {
     this.finalScoreElement = elements.finalScoreElement;
     this.instructionsElement = elements.instructionsElement;
     this.highScoreMessageElement = elements.highScoreMessageElement; // Get the new element
+    this.milestoneMessageElement = elements.milestoneMessageElement; // Get the new element
 
     // Basic validation for elements
     if (
@@ -69,7 +72,8 @@ export class Game {
       !this.gameOverElement ||
       !this.finalScoreElement ||
       !this.instructionsElement ||
-      !this.highScoreMessageElement // Validate the new element
+      !this.highScoreMessageElement || // Validate the new element
+      !this.milestoneMessageElement // Validate the new element
     ) {
       console.error("One or more UI elements not found!");
       this.showError("UI Error: Could not find essential elements.");
@@ -121,6 +125,21 @@ export class Game {
     this.userHighScore = userHighScore; // Update high score on reset if needed
     this.isSavingScore = false;
     this.highScoreMessageShownThisRun = false; // Reset the flag
+    this.lastMilestoneReached = 0;
+    if (this.highScoreMessageTimeout) {
+      clearTimeout(this.highScoreMessageTimeout);
+      this.highScoreMessageTimeout = null;
+    }
+    if (this.highScoreMessageElement) {
+      this.highScoreMessageElement.style.display = "none";
+    }
+    if (this.milestoneMessageTimeout) {
+      clearTimeout(this.milestoneMessageTimeout);
+      this.milestoneMessageTimeout = null;
+    }
+    if (this.milestoneMessageElement) {
+      this.milestoneMessageElement.style.display = "none";
+    }
 
     // Set user online status when game resets/starts
     if (this.username) {
@@ -146,12 +165,6 @@ export class Game {
       // If no username, still ensure leaderboard shows top 5
       console.log("Game reset (no user): Requesting top 5 scores update.");
       this.onLeaderboardUpdate();
-    }
-
-    // Clear any existing high score message timeout
-    if (this.highScoreMessageTimeout) {
-      clearTimeout(this.highScoreMessageTimeout);
-      this.highScoreMessageTimeout = null;
     }
 
     // Reset game state
@@ -183,6 +196,8 @@ export class Game {
       this.instructionsElement.style.display = "block";
     if (this.highScoreMessageElement)
       this.highScoreMessageElement.style.display = "none"; // Ensure message is hidden
+    if (this.milestoneMessageElement)
+      this.milestoneMessageElement.style.display = "none"; // Ensure message is hidden
 
     // Restart animation
     this.clock.start();
@@ -292,6 +307,14 @@ export class Game {
       // (Alternatively, could update this.userHighScore immediately, but let's wait for save)
     }
     // --- End High Score Check ---
+
+    // --- Check for Score Milestones ---
+    const currentMilestone = Math.floor(this.score / 1000);
+    if (currentMilestone > 0 && currentMilestone > this.lastMilestoneReached) {
+      this.lastMilestoneReached = currentMilestone;
+      this.showMilestoneMessage(currentMilestone * 1000);
+    }
+    // --- End Score Milestone Check ---
   }
 
   updateDifficulty(deltaTime) {
@@ -425,6 +448,16 @@ export class Game {
         );
       }
     }
+
+    // Clear milestone message timeout if game ends while it's showing
+    if (this.milestoneMessageTimeout) {
+      clearTimeout(this.milestoneMessageTimeout);
+      this.milestoneMessageTimeout = null;
+      // Hide the message immediately on game over
+      if (this.milestoneMessageElement) {
+        this.milestoneMessageElement.style.display = "none";
+      }
+    }
   }
 
   displayError(message) {
@@ -493,6 +526,12 @@ export class Game {
       window.game = null;
     }
     console.log("Game disposed.");
+
+    // Clear milestone message timeout on dispose
+    if (this.milestoneMessageTimeout) {
+      clearTimeout(this.milestoneMessageTimeout);
+      this.milestoneMessageTimeout = null;
+    }
   }
 
   updateScore(points = 1) {
@@ -513,6 +552,27 @@ export class Game {
       !this.highScoreMessageShownThisRun
     ) {
       this.showHighScoreMessage();
+    }
+  }
+
+  showMilestoneMessage(milestone) {
+    console.log(`Reached milestone: ${milestone}!`);
+    if (this.milestoneMessageElement) {
+      this.milestoneMessageElement.textContent = `${milestone}!!!`;
+      this.milestoneMessageElement.style.display = "block";
+
+      // Clear previous timeout if exists
+      if (this.milestoneMessageTimeout) {
+        clearTimeout(this.milestoneMessageTimeout);
+      }
+
+      // Set timeout to hide the message after 2 seconds
+      this.milestoneMessageTimeout = setTimeout(() => {
+        if (this.milestoneMessageElement) {
+          this.milestoneMessageElement.style.display = "none";
+        }
+        this.milestoneMessageTimeout = null;
+      }, 2000);
     }
   }
 }
