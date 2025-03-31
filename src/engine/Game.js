@@ -395,27 +395,51 @@ export class Game {
       this.finalScoreElement.textContent = `Final Score: ${this.score}`;
     }
 
-    // Update leaderboard with all scores and highlight current player
-    if (this.onLeaderboardUpdate) {
-      try {
-        // Pass 0 to show all scores, and pass the current score
-        this.onLeaderboardUpdate(0, this.score, true); // Added third parameter to indicate game over
-      } catch (error) {
-        console.error("Error updating leaderboard on game over:", error);
-        // Show a fallback message if leaderboard update fails
-        const leaderboardContainer = document.querySelector(
-          "#gameOverLeaderboard .leaderboard-container ul"
-        );
-        if (leaderboardContainer) {
-          leaderboardContainer.innerHTML =
-            "<li>Unable to load scores. Try again later.</li>";
-        }
-      }
-    }
-
     // Save high score if user is logged in
     if (this.username && this.username.trim() !== "") {
-      this.saveScore();
+      this.saveScore()
+        .then(() => {
+          // After saving score, update leaderboard with all scores showing the user's HIGHEST score
+          if (this.onLeaderboardUpdate) {
+            try {
+              // Update both leaderboards
+              this.onLeaderboardUpdate(0, null, true); // Game over leaderboard
+
+              // Also update the top-left in-game leaderboard to show latest data
+              // We need to wait a moment to ensure database has updated
+              setTimeout(() => {
+                const inGameLeaderboard =
+                  document.querySelector("#leaderboard ul");
+                if (inGameLeaderboard) {
+                  // Call with 5 as the limit for in-game display
+                  this.onLeaderboardUpdate(5, null, false);
+                }
+              }, 500);
+            } catch (error) {
+              console.error("Error updating leaderboard on game over:", error);
+              // Show a fallback message if leaderboard update fails
+              const leaderboardContainer = document.querySelector(
+                "#gameOverLeaderboard .leaderboard-container ul"
+              );
+              if (leaderboardContainer) {
+                leaderboardContainer.innerHTML =
+                  "<li>Unable to load scores. Try again later.</li>";
+              }
+            }
+          }
+        })
+        .catch((error) => {
+          console.error("Error in saveScore during endGame:", error);
+          // Still try to update the leaderboard even if save fails
+          if (this.onLeaderboardUpdate) {
+            this.onLeaderboardUpdate(0, null, true);
+          }
+        });
+    } else {
+      // If no username, still update leaderboard
+      if (this.onLeaderboardUpdate) {
+        this.onLeaderboardUpdate(0, null, true);
+      }
     }
 
     // Set user as offline in the database
@@ -555,4 +579,87 @@ export class Game {
 
     // Rest of handleInput code...
   }
+
+  /**
+   * Displays the "New High Score" message
+   */
+  showHighScoreMessage = () => {
+    if (this.highScoreMessageShownThisRun) {
+      return; // Don't show the message multiple times in one run
+    }
+
+    console.log(`Showing high score message for score: ${this.score}`);
+
+    if (this.highScoreMessageElement) {
+      // Show the message
+      this.highScoreMessageElement.textContent = "New High Score!";
+      this.highScoreMessageElement.style.display = "block";
+
+      // Clear any existing timeout
+      if (this.highScoreMessageTimeout) {
+        clearTimeout(this.highScoreMessageTimeout);
+      }
+
+      // Hide the message after 3 seconds
+      this.highScoreMessageTimeout = setTimeout(() => {
+        if (this.highScoreMessageElement) {
+          this.highScoreMessageElement.style.display = "none";
+        }
+        this.highScoreMessageTimeout = null;
+      }, 3000);
+
+      // Mark that we've shown the message for this run
+      this.highScoreMessageShownThisRun = true;
+    }
+  };
+
+  /**
+   * Saves the player's score to the database
+   * @returns {Promise<void>}
+   */
+  saveScore = async () => {
+    if (this.isSavingScore || this.score <= 0) {
+      return; // Prevent duplicate saves or saving zero scores
+    }
+
+    console.log(
+      `Attempting to save score: ${this.score} for user: ${this.username}`
+    );
+    this.isSavingScore = true;
+
+    try {
+      // Import the saveScore function from supabaseClient
+      const { saveScore, fetchUserHighScore } = await import(
+        "../lib/supabaseClient.js"
+      );
+
+      if (typeof saveScore !== "function") {
+        throw new Error("saveScore function not found in supabaseClient");
+      }
+
+      // Save the score to the database
+      await saveScore(this.username, this.score);
+      console.log("Score saved successfully in Game.js");
+
+      // Fetch the updated high score from the database
+      const updatedHighScore = await fetchUserHighScore(this.username);
+
+      // Update our local copy of the high score
+      if (updatedHighScore && updatedHighScore > this.userHighScore) {
+        this.userHighScore = updatedHighScore;
+        console.log(
+          `New high score confirmed from database: ${this.userHighScore}`
+        );
+        this.showHighScoreMessage();
+      }
+
+      return this.userHighScore;
+    } catch (error) {
+      console.error("Failed to save score:", error);
+      // Add any UI feedback here if needed
+      throw error; // Re-throw so we can handle it in endGame
+    } finally {
+      this.isSavingScore = false;
+    }
+  };
 }

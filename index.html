@@ -125,7 +125,7 @@
         left: 50%;
         transform: translate(-50%, -50%);
         background-color: rgba(0, 0, 0, 0.9);
-        border: 2px solid #00ff00;
+        border: none;
         border-radius: 10px;
         padding: 20px;
         text-align: center;
@@ -136,7 +136,7 @@
         max-width: 350px;
         max-height: 80vh;
         overflow-y: auto;
-        box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
         pointer-events: auto; /* Ensure all elements inside can be interacted with */
       }
       #gameOver h1 {
@@ -184,6 +184,7 @@
         font-size: 0.9rem;
         display: flex;
         justify-content: space-between;
+        align-items: center;
       }
       #gameOverLeaderboard li:last-child {
         border-bottom: none;
@@ -341,6 +342,7 @@
         pointer-events: none;
         display: none; /* Initially hidden */
         animation: fadeInOut 3s ease-in-out forwards; /* Animation for display */
+        white-space: nowrap; /* Prevent text from wrapping */
       }
 
       @keyframes fadeInOut {
@@ -432,6 +434,32 @@
         border-radius: 50%;
         pointer-events: none;
         opacity: 0.7;
+      }
+
+      /* Update the current-user class to use green bold text */
+      #leaderboard li.current-user,
+      #gameOverLeaderboard li.current-user {
+        color: #00ff00; /* Bright green */
+        font-weight: bold;
+        text-shadow: 0 0 2px rgba(0, 255, 0, 0.5);
+      }
+
+      /* Remove any background or special styling, just keep the text color */
+      #gameOverLeaderboard li.current-user {
+        background-color: transparent; /* Remove background */
+        border-radius: 0;
+        padding: 8px 5px; /* Same as other entries */
+        margin: 0; /* Remove any special margins */
+      }
+
+      /* Add this to your existing styles */
+      #gameOverLeaderboard li.separator {
+        border-bottom: 1px dashed rgba(0, 255, 0, 0.3);
+        height: 1px;
+        margin: 8px 0;
+        list-style: none;
+        text-align: center;
+        color: rgba(0, 255, 0, 0.5);
       }
     </style>
   </head>

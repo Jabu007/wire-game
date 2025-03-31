@@ -392,3 +392,71 @@ export const unsubscribeFromLeaderboard = async (channel) => {
 };
 
 // --- End Real-time Subscription Functions ---
+
+/**
+ * Saves a user's score to the leaderboard, but only if it's higher than their existing score
+ * @param {string} username - The player's username
+ * @param {number} score - The score to save
+ * @returns {Promise<Object>} The saved score record
+ */
+export const saveScore = async (username, score) => {
+  if (!username || score <= 0) {
+    throw new Error("Invalid username or score");
+  }
+
+  try {
+    console.log(
+      `Checking if score: ${score} for user: ${username} is a new high score`
+    );
+
+    // First get the user's current high score
+    const { data: existingScore, error: fetchError } = await supabase
+      .from("high_scores")
+      .select("score")
+      .eq("username", username)
+      .single();
+
+    if (fetchError && fetchError.code !== "PGRST116") {
+      // PGRST116 means no results found (user doesn't have a score yet)
+      console.error("Error fetching existing score:", fetchError);
+      throw fetchError;
+    }
+
+    // If the user has a higher score already, don't update
+    if (existingScore && existingScore.score >= score) {
+      console.log(
+        `Current score ${score} is not higher than existing score ${existingScore.score}. No update needed.`
+      );
+      return existingScore;
+    }
+
+    // Either user has no score yet, or new score is higher
+    console.log(`Saving new high score: ${score} for user: ${username}`);
+
+    const { data, error } = await supabase.from("high_scores").upsert(
+      {
+        username: username,
+        score: score,
+        created_at: new Date().toISOString(),
+      },
+      {
+        onConflict: "username",
+        ignoreDuplicates: false,
+      }
+    );
+
+    if (error) {
+      console.error("Supabase error:", error);
+      throw error;
+    }
+
+    // Also update the user's online status while we're at it
+    await updateUserOnlineStatus(username, true);
+
+    console.log("High score saved successfully:", data);
+    return data;
+  } catch (error) {
+    console.error("Error saving score:", error);
+    throw error;
+  }
+};

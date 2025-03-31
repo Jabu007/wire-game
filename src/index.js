@@ -102,7 +102,8 @@ const updateLeaderboard = async (
         html,
         leaderboardElement,
         currentUsername,
-        currentScore
+        currentScore,
+        isGameOver
       );
     } else {
       // For in-game leaderboard, show context (player above and below)
@@ -121,89 +122,91 @@ const updateLeaderboard = async (
   }
 };
 
-// Helper function to display all scores (for game over screen)
+/**
+ * Displays all scores in the leaderboard
+ */
 const displayAllScores = (
   scores,
   html,
   leaderboardElement,
-  username,
-  currentScore
+  currentUsername,
+  currentScore,
+  isGameOver = false
 ) => {
-  scores.forEach((score, index) => {
-    const isCurrentPlayer = score.username === username;
-    const position = index + 1;
+  // Clone the scores array to avoid mutation
+  let displayScores = [...scores];
 
-    html += `<li class="${isCurrentPlayer ? "current-player" : ""}">
-      ${position}. ${score.username} - ${score.score}
+  // Sort by score (highest first)
+  displayScores.sort((a, b) => b.score - a.score);
+
+  // Generate the HTML for all leaderboard entries
+  displayScores.forEach((score, index) => {
+    const isCurrentUser = score.username === currentUsername;
+    const displayClass = isCurrentUser ? 'class="current-user"' : "";
+
+    // Format entries with their actual position numbers
+    html += `<li ${displayClass}>
+      ${index + 1}. ${score.username} - ${score.score}
     </li>`;
   });
 
   leaderboardElement.innerHTML = html;
 };
 
-// Helper function to display context scores (player above and below)
+/**
+ * Helper function to display contextual scores (for in-game leaderboard)
+ */
 const displayContextScores = (
   scores,
   html,
   leaderboardElement,
-  username,
+  currentUsername,
   currentScore,
   limit
 ) => {
-  // Find current player's position
-  let currentPlayerIndex = scores.findIndex((s) => s.username === username);
+  // Find the user's actual position based on their high score in the DB
+  const userScore =
+    scores.find((score) => score.username === currentUsername)?.score || 0;
 
-  // If player not found in scores but has a current score
-  if (currentPlayerIndex === -1 && username && currentScore > 0) {
-    // Find where the current score would rank
-    currentPlayerIndex = scores.findIndex((s) => s.score < currentScore);
-    if (currentPlayerIndex === -1) currentPlayerIndex = scores.length;
+  // Create a temporary array with user's current position
+  const tempScores = [...scores];
+  tempScores.sort((a, b) => b.score - a.score);
 
-    // Create a temporary score object for the current player
-    const tempPlayerScore = { username, score: currentScore };
+  // Find user index in the sorted list
+  let userIndex = tempScores.findIndex(
+    (score) => score.username === currentUsername
+  );
 
-    // Insert the temporary player score at the correct position
-    scores.splice(currentPlayerIndex, 0, tempPlayerScore);
+  // If not found and have a score, calculate where they would be
+  if (userIndex === -1 && userScore > 0) {
+    // User has a score but wasn't found - add them to the array
+    tempScores.push({ username: currentUsername, score: userScore });
+    tempScores.sort((a, b) => b.score - a.score);
+    userIndex = tempScores.findIndex(
+      (score) => score.username === currentUsername
+    );
   }
 
-  // If player is in the scores, show context
-  if (currentPlayerIndex !== -1) {
-    // Calculate start and end indices to show player in context
-    let startIndex = Math.max(0, currentPlayerIndex - 1);
-    let endIndex = Math.min(scores.length - 1, currentPlayerIndex + 1);
+  // Calculate start and end indices
+  const halfLimit = Math.floor(limit / 2);
+  let startIdx = Math.max(0, userIndex - halfLimit);
+  const endIdx = Math.min(tempScores.length - 1, startIdx + limit - 1);
 
-    // Ensure we show at least 'limit' scores if possible
-    while (
-      endIndex - startIndex + 1 < limit &&
-      (startIndex > 0 || endIndex < scores.length - 1)
-    ) {
-      if (startIndex > 0) startIndex--;
-      if (endIndex - startIndex + 1 < limit && endIndex < scores.length - 1)
-        endIndex++;
-    }
+  // Adjust start if end is capped
+  if (endIdx - startIdx + 1 < limit) {
+    startIdx = Math.max(0, endIdx - limit + 1);
+  }
 
-    // Display the scores in the calculated range
-    for (let i = startIndex; i <= endIndex; i++) {
-      const score = scores[i];
-      const isCurrentPlayer = i === currentPlayerIndex;
-      const position = i + 1;
+  // Generate HTML for context scores
+  for (let i = startIdx; i <= endIdx; i++) {
+    if (i < tempScores.length) {
+      const score = tempScores[i];
+      const isCurrentUser = score.username === currentUsername;
 
-      // Wrap the entire content in a span to ensure the whole line is highlighted
-      html += `<li class="${isCurrentPlayer ? "current-player-highlight" : ""}">
-        ${position}. ${score.username} - ${score.score}
+      html += `<li ${isCurrentUser ? 'class="current-user"' : ""}>
+        ${i + 1}. ${score.username} - ${score.score}
       </li>`;
     }
-  } else {
-    // If player not found, just show top scores
-    const displayScores = scores.slice(0, limit);
-
-    displayScores.forEach((score, index) => {
-      const isCurrentPlayer = score.username === username;
-      const position = index + 1;
-      html += `<li class="${
-        isCurrentPlayer ? "current-player-highlight" : ""
-      }">${position}. ${score.username} - ${score.score}</li>`;
-    });
   }
 
   leaderboardElement.innerHTML = html;
@@ -499,3 +502,19 @@ initializeAudio();
 console.log("Stored mute setting:", localStorage.getItem(MUTE_STORAGE_KEY));
 // To force unmute for testing, uncomment this line:
 // localStorage.removeItem(MUTE_STORAGE_KEY);
+
+// Find where the high score notification is displayed and modify it
+// This could be in a function like displayHighScoreNotification() or similar
+
+// If using a DOM element directly:
+const highScoreElement = document.getElementById("high-score-notification"); // Adjust the ID as needed
+highScoreElement.style.whiteSpace = "nowrap";
+highScoreElement.innerText = "New High Score!";
+
+// If using a canvas text rendering approach:
+function drawHighScoreText(ctx) {
+  // ... existing code ...
+  ctx.font = "28px Arial"; // Adjust font size as needed
+  ctx.fillText("New High Score!", x, y); // Ensure entire text is drawn at once
+  // ... existing code ...
+}
