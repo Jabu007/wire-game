@@ -124,13 +124,117 @@
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        background: rgba(0, 0, 0, 0.8);
-        color: white;
-        padding: 20px;
+        background-color: rgba(0, 0, 0, 0.9);
+        border: 2px solid #00ff00;
         border-radius: 10px;
+        padding: 20px;
         text-align: center;
-        display: none; /* Initially hidden */
-        pointer-events: auto; /* Re-enable events */
+        color: white;
+        z-index: 100;
+        display: none;
+        width: 85%;
+        max-width: 350px;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+        pointer-events: auto; /* Ensure all elements inside can be interacted with */
+      }
+      #gameOver h1 {
+        color: #ff3333;
+        margin-top: 0;
+        font-size: 2rem;
+        text-shadow: 0 0 10px rgba(255, 0, 0, 0.7);
+        margin-bottom: 10px;
+      }
+      #finalScore {
+        font-size: 1.5rem;
+        margin: 10px 0 15px 0;
+        color: #00ff00;
+        text-shadow: 0 0 10px rgba(0, 255, 0, 0.7);
+      }
+      #gameOverLeaderboard {
+        margin: 15px 0;
+        text-align: left;
+      }
+      #gameOverLeaderboard h2 {
+        text-align: center;
+        font-size: 1.2rem;
+        margin-bottom: 10px;
+        color: #00ffff;
+      }
+      .leaderboard-container {
+        max-height: 35vh;
+        overflow-y: auto;
+        border: 1px solid rgba(0, 255, 0, 0.3);
+        border-radius: 5px;
+        padding: 5px;
+        background-color: rgba(0, 0, 0, 0.5);
+        margin-bottom: 15px;
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        scrollbar-width: thin; /* For Firefox */
+      }
+      #gameOverLeaderboard ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      #gameOverLeaderboard li {
+        padding: 8px 5px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        font-size: 0.9rem;
+        display: flex;
+        justify-content: space-between;
+      }
+      #gameOverLeaderboard li:last-child {
+        border-bottom: none;
+      }
+      #gameOverLeaderboard .current-player {
+        background-color: rgba(0, 255, 0, 0.2);
+        font-weight: bold;
+        color: #00ff00;
+        border-radius: 3px;
+      }
+      #restartButton {
+        background-color: #00aa00;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 12px 20px;
+        font-size: 1.2rem;
+        margin-top: 10px;
+        cursor: pointer;
+        font-family: monospace;
+        transition: all 0.2s;
+        box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        width: 80%;
+        max-width: 200px;
+        pointer-events: auto; /* Ensure button can be clicked */
+        position: relative; /* Create stacking context */
+        z-index: 102; /* Higher than other game over elements */
+      }
+      /* Add a visual pulse effect to draw attention to the restart button */
+      @keyframes buttonPulse {
+        0% {
+          transform: scale(1);
+          box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+        50% {
+          transform: scale(1.05);
+          box-shadow: 0 0 15px rgba(0, 255, 0, 0.7);
+        }
+        100% {
+          transform: scale(1);
+          box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+      }
+      #restartButton {
+        animation: buttonPulse 2s infinite;
+      }
+      #restartButton:hover,
+      #restartButton:active {
+        background-color: #00ff00;
+        transform: scale(1.05);
+        animation: none; /* Stop the pulse animation on hover */
       }
       #instructions {
         position: absolute;
@@ -280,6 +384,55 @@
         max-width: 90vw; /* Limit width to prevent overflow */
       }
       /* --- End Milestone Message Style --- */
+
+      /* Improve the highlight for current player in the top-left leaderboard */
+      #leaderboard .current-player-highlight {
+        color: #00ff00 !important; /* Bright green */
+        font-weight: bold !important;
+        text-shadow: 0 0 5px rgba(0, 255, 0, 0.7);
+      }
+
+      /* Keep the existing game over leaderboard styling */
+      #gameOverLeaderboard .current-player {
+        background-color: rgba(0, 255, 0, 0.2);
+        font-weight: bold;
+        color: #00ff00;
+        border-radius: 3px;
+      }
+
+      /* Improve scrollbar visibility on all browsers */
+      .leaderboard-container::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .leaderboard-container::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 4px;
+      }
+
+      .leaderboard-container::-webkit-scrollbar-thumb {
+        background: rgba(0, 255, 0, 0.5);
+        border-radius: 4px;
+      }
+
+      .leaderboard-container::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 255, 0, 0.7);
+      }
+
+      /* Add a visual indicator that the list is scrollable */
+      .leaderboard-container::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 40px;
+        height: 10px;
+        background: linear-gradient(rgba(0, 255, 0, 0.3), transparent);
+        border-radius: 50%;
+        pointer-events: none;
+        opacity: 0.7;
+      }
     </style>
   </head>
   <body>
@@ -356,8 +509,19 @@
       <div id="gameOver">
         <h1>GAME OVER</h1>
         <div id="finalScore">Final Score: 0</div>
-        <p>Press R or Tap to Restart</p>
-        <!-- Updated restart text -->
+
+        <!-- Add leaderboard directly in the game over modal -->
+        <div id="gameOverLeaderboard">
+          <h2>Top Scores</h2>
+          <div class="leaderboard-container">
+            <ul>
+              <li>Loading scores...</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Make the restart button more prominent -->
+        <button id="restartButton">Play Again</button>
       </div>
       <div id="instructions">
         Use Left/Right Arrows or A/D or Tap Screen Sides to Move

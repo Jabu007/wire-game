@@ -64,21 +64,11 @@ export class InputHandler {
   }
 
   handleTouchStart(event) {
-    // If game is over, only restart if touch is in bottom half of screen
+    // If game is over, don't restart on general screen touches
     if (this.game.gameOver) {
-      const touch = event.touches[0];
-      const touchY = touch.clientY;
-      const screenHeight = window.innerHeight;
-
-      // Only restart if touch is in the bottom half of the screen
-      if (touchY >= screenHeight / 2) {
-        console.log("Restarting game via touch in bottom half of screen...");
-        // Prevent default touch behavior like scrolling/zooming ONLY when restarting
-        event.preventDefault();
-        // Pass the current username when resetting
-        this.game.reset(this.game.username);
-      }
-      return; // Stop processing touch further regardless of position
+      // We no longer restart the game based on touch position
+      // The restart should only happen when the restart button is clicked
+      return; // Stop processing touch further when game is over
     }
 
     // --- Game is active ---
@@ -95,13 +85,11 @@ export class InputHandler {
     const screenWidth = window.innerWidth;
     const screenHeight = window.innerHeight;
 
-    // --- MODIFICATION START: Only respond to touches in bottom half of screen ---
     // Check if touch is in the bottom half of the screen
     if (touchY < screenHeight / 2) {
       // Touch is in top half, ignore for player movement
       return;
     }
-    // --- MODIFICATION END ---
 
     // Prevent default behavior (like scrolling) during gameplay interaction
     event.preventDefault();

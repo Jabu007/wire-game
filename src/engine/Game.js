@@ -52,6 +52,7 @@ export class Game {
     this.highScoreMessageTimeout = null; // Timeout ID for hiding the message
     this.lastMilestoneReached = 0; // Track the last milestone reached
     this.milestoneMessageTimeout = null; // Timeout ID for hiding the milestone message
+    this.tapToRestartEnabled = true; // Add this flag to control tap restart
 
     // --- Add Audio Reference ---
     this.backgroundMusic = document.getElementById("backgroundMusic");
@@ -78,6 +79,19 @@ export class Game {
       console.error("One or more UI elements not found!");
       this.showError("UI Error: Could not find essential elements.");
       return;
+    }
+
+    // In the constructor, add a reference to the new elements
+    this.gameOverLeaderboardElement = document.getElementById(
+      "gameOverLeaderboard"
+    );
+    this.restartButton = document.getElementById("restartButton");
+
+    // Add event listener for the restart button
+    if (this.restartButton) {
+      this.restartButton.addEventListener("click", () => {
+        this.reset();
+      });
     }
 
     try {
@@ -369,94 +383,46 @@ export class Game {
     if (this.gameOver) return; // Prevent multiple calls
 
     this.gameOver = true;
+    this.tapToRestartEnabled = false; // Disable tap to restart
     console.log(`Game Over! Final Score for ${this.username}: ${this.score}`);
-
-    // Stop player movement sound? (If applicable)
 
     // Update UI
     if (this.gameOverElement) {
       this.gameOverElement.style.display = "block";
     }
+
     if (this.finalScoreElement) {
       this.finalScoreElement.textContent = `Final Score: ${this.score}`;
     }
-    if (this.instructionsElement) {
-      this.instructionsElement.style.display = "none"; // Hide instructions on game over
-    }
 
-    // Clear high score message timeout if game ends while it's showing
-    if (this.highScoreMessageTimeout) {
-      clearTimeout(this.highScoreMessageTimeout);
-      this.highScoreMessageTimeout = null;
-      // Optionally hide the message immediately on game over
-      if (this.highScoreMessageElement) {
-        this.highScoreMessageElement.style.display = "none";
-      }
-    }
-
-    // --- Request full leaderboard update ---
+    // Update leaderboard with all scores and highlight current player
     if (this.onLeaderboardUpdate) {
-      console.log("Game ended: Requesting all scores update.");
-      this.onLeaderboardUpdate(0); // Request update with limit 0 (fetch all)
-    }
-    // --- End leaderboard update request ---
-
-    // Save score (only if current score is higher than fetched high score)
-    if (!this.isSavingScore && this.score > this.userHighScore) {
-      this.isSavingScore = true;
-      console.log(
-        `Attempting to save NEW high score ${this.score} for user ${this.username}`
-      );
-      saveHighScore(this.username, this.score)
-        .then(() => {
-          console.log("Score saving process completed.");
-          // Update the locally stored high score for the next run
-          this.userHighScore = this.score;
-          // The subscription should automatically trigger the leaderboard update (top 5)
-          // after the save completes and the database changes.
-          // No need to explicitly call onLeaderboardUpdate here after save.
-        })
-        .catch((err) => {
-          console.error(
-            "Error during saveHighScore promise:",
-            err.message || err
-          );
-        })
-        .finally(() => {
-          this.isSavingScore = false;
-        });
-    } else if (this.score <= this.userHighScore) {
-      console.log(
-        `Score ${this.score} is not higher than high score ${this.userHighScore}. Not saving.`
-      );
-      // Set user offline even if score wasn't saved
-      if (this.username) {
-        updateUserOnlineStatus(this.username, false).catch((err) =>
-          console.error("Failed to set user offline after game end:", err)
+      try {
+        // Pass 0 to show all scores, and pass the current score
+        this.onLeaderboardUpdate(0, this.score, true); // Added third parameter to indicate game over
+      } catch (error) {
+        console.error("Error updating leaderboard on game over:", error);
+        // Show a fallback message if leaderboard update fails
+        const leaderboardContainer = document.querySelector(
+          "#gameOverLeaderboard .leaderboard-container ul"
         );
-      }
-    } else {
-      // If saving score, set offline status after save attempt (in finally block maybe?)
-      // For simplicity, let's rely on the beforeunload handler for offline status if score is saved.
-      // Or, we could add it here too. Let's add it for robustness.
-      if (this.username) {
-        updateUserOnlineStatus(this.username, false).catch((err) =>
-          console.error(
-            "Failed to set user offline after game end (score save path):",
-            err
-          )
-        );
+        if (leaderboardContainer) {
+          leaderboardContainer.innerHTML =
+            "<li>Unable to load scores. Try again later.</li>";
+        }
       }
     }
 
-    // Clear milestone message timeout if game ends while it's showing
-    if (this.milestoneMessageTimeout) {
-      clearTimeout(this.milestoneMessageTimeout);
-      this.milestoneMessageTimeout = null;
-      // Hide the message immediately on game over
-      if (this.milestoneMessageElement) {
-        this.milestoneMessageElement.style.display = "none";
-      }
+    // Save high score if user is logged in
+    if (this.username && this.username.trim() !== "") {
+      this.saveScore();
+    }
+
+    // Set user as offline in the database
+    if (this.username && this.username.trim() !== "") {
+      updateUserOnlineStatus(this.username, false).catch((err) =>
+        console.warn("Failed to set user offline:", err)
+      );
     }
   }
 
@@ -574,5 +540,19 @@ export class Game {
         this.milestoneMessageTimeout = null;
       }, 2000);
     }
+  }
+
+  handleInput(input) {
+    if (this.gameOver) {
+      // Only handle restart input if tap restart is enabled
+      if (input.restart && this.tapToRestartEnabled) {
+        this.reset();
+        return;
+      }
+      // Otherwise ignore input during game over
+      return;
+    }
+
+    // Rest of handleInput code...
   }
 }

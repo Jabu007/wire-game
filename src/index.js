@@ -14,6 +14,21 @@ console.log("index.js: Script loaded.");
 const USERNAME_STORAGE_KEY = "wireframeRunnerUsername"; // Key for localStorage
 const MUTE_STORAGE_KEY = "wireframeRunnerMuted"; // Key for mute state
 
+// Add the missing getScores function
+/**
+ * Fetches scores from the leaderboard
+ * @returns {Promise<Array>} Array of score objects
+ */
+const getScores = async () => {
+  try {
+    const scores = await fetchLeaderboard();
+    return scores || [];
+  } catch (error) {
+    console.error("Error fetching scores:", error);
+    return []; // Return empty array on error
+  }
+};
+
 // --- Get UI elements ---
 const usernameOverlay = document.getElementById("usernameOverlay");
 const usernameInput = document.getElementById("usernameInput");
@@ -46,156 +61,152 @@ const elements = getElements();
  * Fetches scores and updates the leaderboard UI.
  * @param {number | null} [limit=3] - Max scores to display. Shows all if null or 0.
  * @param {number} [currentScore=0] - The player's current score for contextual display.
+ * @param {boolean} [isGameOver=false] - Whether this is being called from game over screen.
  */
-const updateLeaderboard = async (limit = 3, currentScore = 0) => {
+const updateLeaderboard = async (
+  limit = 3,
+  currentScore = 0,
+  isGameOver = false
+) => {
+  const leaderboardElement = isGameOver
+    ? document.querySelector("#gameOverLeaderboard .leaderboard-container ul")
+    : document.querySelector("#leaderboard ul");
+
   if (!leaderboardElement) {
     console.error("Leaderboard element not found, cannot update.");
     return;
   }
 
-  // If game is over (limit=0), show all scores with top 10 visible initially
-  if (limit === 0) {
-    const title = "All Scores:";
-    leaderboardElement.innerHTML = `<strong>${title}</strong><ul><li>Loading...</li></ul>`;
-    leaderboardElement.classList.add("leaderboard-show-all");
-
-    // Make sure the leaderboard is scrollable
-    leaderboardElement.style.maxHeight = "250px"; // Increase height for game over view
-    leaderboardElement.style.overflowY = "auto";
-
-    try {
-      const scores = await fetchLeaderboard(0); // Get all scores
-
-      if (scores && scores.length > 0) {
-        // Sort scores in descending order (highest first)
-        scores.sort((a, b) => b.score - a.score);
-
-        let leaderboardHTML = `<strong>${title}</strong><ul>`;
-
-        scores.forEach((entry, index) => {
-          // Sanitize username display
-          const safeUsername = entry.username
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
-
-          // Add online status indicator
-          const onlineIndicator = entry.is_online
-            ? '<span class="online-indicator" aria-label="Online"></span>'
-            : '<span class="offline-indicator" aria-label="Offline"></span>';
-
-          // Highlight the user's position - but only apply to username and score, not position number
-          const isUserEntry =
-            entry.username.toLowerCase() === currentUsername.toLowerCase();
-
-          // Create HTML with position number outside the highlighted span
-          leaderboardHTML += `<li>${onlineIndicator} ${index + 1}. ${
-            isUserEntry ? '<span class="player-position">' : ""
-          }${safeUsername} - ${entry.score}${
-            isUserEntry ? "</span>" : ""
-          }</li>`;
-        });
-
-        leaderboardHTML += "</ul>";
-        leaderboardElement.innerHTML = leaderboardHTML;
-      } else {
-        leaderboardElement.innerHTML = `<strong>${title}</strong><ul><li>No scores yet.</li></ul>`;
-      }
-    } catch (error) {
-      console.error("Failed to update leaderboard:", error);
-      leaderboardElement.innerHTML = `<strong>${title}</strong><ul><li>Error loading.</li></ul>`;
-    }
-    return;
-  }
-
-  // For active gameplay, reset to normal size and show contextual scores
-  leaderboardElement.classList.remove("leaderboard-show-all");
-  leaderboardElement.style.maxHeight = "150px"; // Reset to default height for gameplay
-  leaderboardElement.innerHTML = `<strong>Your Position:</strong><ul><li>Loading...</li></ul>`;
-
   try {
-    // Get all scores to find player's position
-    const allScores = await fetchLeaderboard(0);
+    // Show loading state
+    leaderboardElement.innerHTML = "<li>Loading scores...</li>";
 
-    if (!allScores || allScores.length === 0) {
-      leaderboardElement.innerHTML = `<strong>Your Position:</strong><ul><li>No scores yet.</li></ul>`;
+    // Fetch scores from the database
+    const scores = await getScores();
+
+    if (!scores || scores.length === 0) {
+      leaderboardElement.innerHTML = "<li>No scores yet!</li>";
       return;
     }
 
-    // Sort scores in descending order (highest first)
-    allScores.sort((a, b) => b.score - a.score);
+    // Sort scores by score (highest first)
+    scores.sort((a, b) => b.score - a.score);
 
-    // Find the user's entry in the leaderboard
-    const userEntry = allScores.find(
-      (entry) => entry.username.toLowerCase() === currentUsername.toLowerCase()
-    );
+    // Create HTML for the leaderboard
+    let html = "";
 
-    // Find user's position in the leaderboard
-    const userPosition = userEntry
-      ? allScores.findIndex(
-          (entry) =>
-            entry.username.toLowerCase() === currentUsername.toLowerCase()
-        )
-      : -1;
-
-    // If user not found in leaderboard, show top 3 scores
-    if (userPosition === -1) {
-      const displayScores = allScores.slice(0, 3); // Show only top 3 instead of 5
-
-      let leaderboardHTML = `<strong>Top 3 Scores:</strong><ul>`; // Update title to reflect 3 scores
-
-      displayScores.forEach((entry, index) => {
-        const safeUsername = entry.username
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;");
-
-        const onlineIndicator = entry.is_online
-          ? '<span class="online-indicator" aria-label="Online"></span>'
-          : '<span class="offline-indicator" aria-label="Offline"></span>';
-
-        leaderboardHTML += `<li>${onlineIndicator} ${
-          index + 1
-        }. ${safeUsername} - ${entry.score}</li>`;
-      });
-
-      leaderboardHTML += "</ul>";
-      leaderboardElement.innerHTML = leaderboardHTML;
-      return;
+    if (isGameOver || limit === 0) {
+      // For game over screen or when showing all scores
+      displayAllScores(
+        scores,
+        html,
+        leaderboardElement,
+        currentUsername,
+        currentScore
+      );
+    } else {
+      // For in-game leaderboard, show context (player above and below)
+      displayContextScores(
+        scores,
+        html,
+        leaderboardElement,
+        currentUsername,
+        currentScore,
+        limit
+      );
     }
-
-    // Determine which scores to display (1 above, user, 1 below)
-    const startIndex = Math.max(0, userPosition - 1); // Only 1 above instead of 2
-    const endIndex = Math.min(allScores.length, startIndex + 3); // Show 3 total instead of 5
-    const displayScores = allScores.slice(startIndex, endIndex);
-
-    // Build the HTML
-    let leaderboardHTML = `<strong>Your Position:</strong><ul>`;
-
-    displayScores.forEach((entry, index) => {
-      const actualPosition = startIndex + index + 1; // 1-based position
-      const safeUsername = entry.username
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
-
-      const onlineIndicator = entry.is_online
-        ? '<span class="online-indicator" aria-label="Online"></span>'
-        : '<span class="offline-indicator" aria-label="Offline"></span>';
-
-      // Highlight only username and score, not position number
-      const isUserEntry =
-        entry.username.toLowerCase() === currentUsername.toLowerCase();
-
-      // Create HTML with position number outside the highlighted span
-      leaderboardHTML += `<li>${onlineIndicator} ${actualPosition}. ${
-        isUserEntry ? '<span class="player-position">' : ""
-      }${safeUsername} - ${entry.score}${isUserEntry ? "</span>" : ""}</li>`;
-    });
-
-    leaderboardHTML += "</ul>";
-    leaderboardElement.innerHTML = leaderboardHTML;
   } catch (error) {
-    console.error("Failed to update contextual leaderboard:", error);
-    leaderboardElement.innerHTML = `<strong>Your Position:</strong><ul><li>Error loading.</li></ul>`;
+    console.error("Error updating leaderboard:", error);
+    leaderboardElement.innerHTML = "<li>Error loading scores</li>";
   }
+};
+
+// Helper function to display all scores (for game over screen)
+const displayAllScores = (
+  scores,
+  html,
+  leaderboardElement,
+  username,
+  currentScore
+) => {
+  scores.forEach((score, index) => {
+    const isCurrentPlayer = score.username === username;
+    const position = index + 1;
+
+    html += `<li class="${isCurrentPlayer ? "current-player" : ""}">
+      ${position}. ${score.username} - ${score.score}
+    </li>`;
+  });
+
+  leaderboardElement.innerHTML = html;
+};
+
+// Helper function to display context scores (player above and below)
+const displayContextScores = (
+  scores,
+  html,
+  leaderboardElement,
+  username,
+  currentScore,
+  limit
+) => {
+  // Find current player's position
+  let currentPlayerIndex = scores.findIndex((s) => s.username === username);
+
+  // If player not found in scores but has a current score
+  if (currentPlayerIndex === -1 && username && currentScore > 0) {
+    // Find where the current score would rank
+    currentPlayerIndex = scores.findIndex((s) => s.score < currentScore);
+    if (currentPlayerIndex === -1) currentPlayerIndex = scores.length;
+
+    // Create a temporary score object for the current player
+    const tempPlayerScore = { username, score: currentScore };
+
+    // Insert the temporary player score at the correct position
+    scores.splice(currentPlayerIndex, 0, tempPlayerScore);
+  }
+
+  // If player is in the scores, show context
+  if (currentPlayerIndex !== -1) {
+    // Calculate start and end indices to show player in context
+    let startIndex = Math.max(0, currentPlayerIndex - 1);
+    let endIndex = Math.min(scores.length - 1, currentPlayerIndex + 1);
+
+    // Ensure we show at least 'limit' scores if possible
+    while (
+      endIndex - startIndex + 1 < limit &&
+      (startIndex > 0 || endIndex < scores.length - 1)
+    ) {
+      if (startIndex > 0) startIndex--;
+      if (endIndex - startIndex + 1 < limit && endIndex < scores.length - 1)
+        endIndex++;
+    }
+
+    // Display the scores in the calculated range
+    for (let i = startIndex; i <= endIndex; i++) {
+      const score = scores[i];
+      const isCurrentPlayer = i === currentPlayerIndex;
+      const position = i + 1;
+
+      // Wrap the entire content in a span to ensure the whole line is highlighted
+      html += `<li class="${isCurrentPlayer ? "current-player-highlight" : ""}">
+        ${position}. ${score.username} - ${score.score}
+      </li>`;
+    }
+  } else {
+    // If player not found, just show top scores
+    const displayScores = scores.slice(0, limit);
+
+    displayScores.forEach((score, index) => {
+      const isCurrentPlayer = score.username === username;
+      const position = index + 1;
+      html += `<li class="${
+        isCurrentPlayer ? "current-player-highlight" : ""
+      }">${position}. ${score.username} - ${score.score}</li>`;
+    });
+  }
+
+  leaderboardElement.innerHTML = html;
 };
 // --- End Leaderboard Update Function ---
 
