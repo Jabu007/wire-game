@@ -64,14 +64,21 @@ export class InputHandler {
   }
 
   handleTouchStart(event) {
-    // If game is over, any touch restarts the game
+    // If game is over, only restart if touch is in bottom half of screen
     if (this.game.gameOver) {
-      console.log("Restarting game via touch...");
-      // Prevent default touch behavior like scrolling/zooming ONLY when restarting
-      event.preventDefault();
-      // Pass the current username when resetting
-      this.game.reset(this.game.username);
-      return; // Stop processing touch further
+      const touch = event.touches[0];
+      const touchY = touch.clientY;
+      const screenHeight = window.innerHeight;
+
+      // Only restart if touch is in the bottom half of the screen
+      if (touchY >= screenHeight / 2) {
+        console.log("Restarting game via touch in bottom half of screen...");
+        // Prevent default touch behavior like scrolling/zooming ONLY when restarting
+        event.preventDefault();
+        // Pass the current username when resetting
+        this.game.reset(this.game.username);
+      }
+      return; // Stop processing touch further regardless of position
     }
 
     // --- Game is active ---
@@ -81,12 +88,24 @@ export class InputHandler {
       return;
     }
 
+    // Get touch coordinates
+    const touch = event.touches[0];
+    const touchX = touch.clientX;
+    const touchY = touch.clientY;
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+
+    // --- MODIFICATION START: Only respond to touches in bottom half of screen ---
+    // Check if touch is in the bottom half of the screen
+    if (touchY < screenHeight / 2) {
+      // Touch is in top half, ignore for player movement
+      return;
+    }
+    // --- MODIFICATION END ---
+
     // Prevent default behavior (like scrolling) during gameplay interaction
     event.preventDefault();
 
-    const touch = event.touches[0];
-    const touchX = touch.clientX;
-    const screenWidth = window.innerWidth;
     let moved = false;
 
     // Determine movement based on touch position

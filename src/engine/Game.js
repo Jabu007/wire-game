@@ -27,11 +27,16 @@ import {
 } from "../config/constants.js";
 
 export class Game {
-  constructor(username, userHighScore, onScoreSavedCallback) {
+  /**
+   * @param {string} username - The player's username.
+   * @param {number} userHighScore - The player's personal best score.
+   * @param {(limit?: number | null) => Promise<void>} onLeaderboardUpdate - Callback to update the leaderboard UI.
+   */
+  constructor(username, userHighScore, onLeaderboardUpdate) {
     console.log("Wireframe World Runner: Initializing game...");
     this.username = username; // Store the username
     this.userHighScore = userHighScore; // Store the user's personal high score
-    this.onScoreSaved = onScoreSavedCallback; // Store the callback
+    this.onLeaderboardUpdate = onLeaderboardUpdate; // Store the leaderboard update callback
 
     this.score = 0;
     this.gameOver = false;
@@ -119,9 +124,28 @@ export class Game {
 
     // Set user online status when game resets/starts
     if (this.username) {
-      updateUserOnlineStatus(this.username, true).catch((err) => {
-        console.error("Failed to set user online status on reset:", err);
-      });
+      updateUserOnlineStatus(this.username, true)
+        .then(() => {
+          // After setting online, refresh leaderboard to top 5
+          if (this.onLeaderboardUpdate) {
+            console.log("Game reset: Requesting top 5 scores update.");
+            this.onLeaderboardUpdate(); // Request update with default limit (5)
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to set user online status on reset:", err);
+          // Still try to update leaderboard even if status update fails
+          if (this.onLeaderboardUpdate) {
+            console.warn(
+              "Game reset: Requesting top 5 scores update despite status error."
+            );
+            this.onLeaderboardUpdate();
+          }
+        });
+    } else if (this.onLeaderboardUpdate) {
+      // If no username, still ensure leaderboard shows top 5
+      console.log("Game reset (no user): Requesting top 5 scores update.");
+      this.onLeaderboardUpdate();
     }
 
     // Clear any existing high score message timeout
@@ -347,6 +371,13 @@ export class Game {
       }
     }
 
+    // --- Request full leaderboard update ---
+    if (this.onLeaderboardUpdate) {
+      console.log("Game ended: Requesting all scores update.");
+      this.onLeaderboardUpdate(0); // Request update with limit 0 (fetch all)
+    }
+    // --- End leaderboard update request ---
+
     // Save score (only if current score is higher than fetched high score)
     if (!this.isSavingScore && this.score > this.userHighScore) {
       this.isSavingScore = true;
@@ -358,9 +389,9 @@ export class Game {
           console.log("Score saving process completed.");
           // Update the locally stored high score for the next run
           this.userHighScore = this.score;
-          if (this.onScoreSaved) {
-            this.onScoreSaved(); // This will trigger leaderboard update
-          }
+          // The subscription should automatically trigger the leaderboard update (top 5)
+          // after the save completes and the database changes.
+          // No need to explicitly call onLeaderboardUpdate here after save.
         })
         .catch((err) => {
           console.error(
@@ -375,11 +406,24 @@ export class Game {
       console.log(
         `Score ${this.score} is not higher than high score ${this.userHighScore}. Not saving.`
       );
-      // Even if not saving score, ensure leaderboard updates if needed (e.g., status change)
-      // However, the subscription should handle this. If not, uncomment below:
-      // if (this.onScoreSaved) {
-      //   this.onScoreSaved();
-      // }
+      // Set user offline even if score wasn't saved
+      if (this.username) {
+        updateUserOnlineStatus(this.username, false).catch((err) =>
+          console.error("Failed to set user offline after game end:", err)
+        );
+      }
+    } else {
+      // If saving score, set offline status after save attempt (in finally block maybe?)
+      // For simplicity, let's rely on the beforeunload handler for offline status if score is saved.
+      // Or, we could add it here too. Let's add it for robustness.
+      if (this.username) {
+        updateUserOnlineStatus(this.username, false).catch((err) =>
+          console.error(
+            "Failed to set user offline after game end (score save path):",
+            err
+          )
+        );
+      }
     }
   }
 
@@ -423,6 +467,22 @@ export class Game {
     }
     // --- End Pause Music ---
 
+    // --- Set user offline on dispose ---
+    // It's good practice to also try setting offline here,
+    // especially if the game is disposed before 'endGame' is fully processed
+    // or if the user closes the tab before 'endGame' completes its async operations.
+    if (this.username && !this.gameOver) {
+      // Only set offline here if game didn't naturally end
+      // because endGame already handles setting offline.
+      console.log(
+        "Setting user offline during dispose (game didn't end normally)."
+      );
+      updateUserOnlineStatus(this.username, false).catch((err) =>
+        console.warn("Failed to set user offline during dispose:", err)
+      );
+    }
+    // --- End set offline ---
+
     if (this.player) this.player.dispose();
     if (this.obstacleManager) this.obstacleManager.dispose();
     if (this.city) this.city.dispose();
@@ -433,5 +493,26 @@ export class Game {
       window.game = null;
     }
     console.log("Game disposed.");
+  }
+
+  updateScore(points = 1) {
+    this.score += points;
+    if (this.scoreElement) {
+      this.scoreElement.textContent = `Score: ${this.score}`;
+    }
+
+    // Update leaderboard with current score for contextual display
+    if (this.onLeaderboardUpdate) {
+      this.onLeaderboardUpdate(5, this.score); // Pass current score as second parameter
+    }
+
+    // Check for high score
+    if (
+      this.userHighScore !== null &&
+      this.score > this.userHighScore &&
+      !this.highScoreMessageShownThisRun
+    ) {
+      this.showHighScoreMessage();
+    }
   }
 }

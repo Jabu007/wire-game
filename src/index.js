@@ -42,41 +42,156 @@ let leaderboardChannel = null;
 const elements = getElements();
 
 // --- Leaderboard Update Function ---
-const updateLeaderboard = async () => {
+/**
+ * Fetches scores and updates the leaderboard UI.
+ * @param {number | null} [limit=5] - Max scores to display. Shows all if null or 0.
+ * @param {number} [currentScore=0] - The player's current score for contextual display.
+ */
+const updateLeaderboard = async (limit = 5, currentScore = 0) => {
   if (!leaderboardElement) {
     console.error("Leaderboard element not found, cannot update.");
     return;
   }
-  leaderboardElement.innerHTML = "<li>Loading scores...</li>"; // Use list item for consistency
+
+  // If game is over (limit=0), show all scores with top 10 visible initially
+  if (limit === 0) {
+    const title = "All Scores:";
+    leaderboardElement.innerHTML = `<strong>${title}</strong><ul><li>Loading...</li></ul>`;
+    leaderboardElement.classList.add("leaderboard-show-all");
+
+    // Make sure the leaderboard is scrollable
+    leaderboardElement.style.maxHeight = "250px"; // Increase height for game over view
+    leaderboardElement.style.overflowY = "auto";
+
+    try {
+      const scores = await fetchLeaderboard(0); // Get all scores
+
+      if (scores && scores.length > 0) {
+        // Sort scores in descending order (highest first)
+        scores.sort((a, b) => b.score - a.score);
+
+        let leaderboardHTML = `<strong>${title}</strong><ul>`;
+
+        scores.forEach((entry, index) => {
+          // Sanitize username display
+          const safeUsername = entry.username
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+
+          // Add online status indicator
+          const onlineIndicator = entry.is_online
+            ? '<span class="online-indicator" aria-label="Online"></span>'
+            : '<span class="offline-indicator" aria-label="Offline"></span>';
+
+          // Highlight the user's position
+          const isUserEntry =
+            entry.username.toLowerCase() === currentUsername.toLowerCase();
+          const positionClass = isUserEntry ? 'class="player-position"' : "";
+
+          // Add position number (1-based index)
+          leaderboardHTML += `<li ${positionClass}>${onlineIndicator} ${
+            index + 1
+          }. ${safeUsername} - ${entry.score}</li>`;
+        });
+
+        leaderboardHTML += "</ul>";
+        leaderboardElement.innerHTML = leaderboardHTML;
+      } else {
+        leaderboardElement.innerHTML = `<strong>${title}</strong><ul><li>No scores yet.</li></ul>`;
+      }
+    } catch (error) {
+      console.error("Failed to update leaderboard:", error);
+      leaderboardElement.innerHTML = `<strong>${title}</strong><ul><li>Error loading.</li></ul>`;
+    }
+    return;
+  }
+
+  // For active gameplay, reset to normal size and show contextual scores
+  leaderboardElement.classList.remove("leaderboard-show-all");
+  leaderboardElement.style.maxHeight = "150px"; // Reset to default height for gameplay
+  leaderboardElement.innerHTML = `<strong>Your Position:</strong><ul><li>Loading...</li></ul>`;
 
   try {
-    const topScores = await fetchLeaderboard(5); // Fetch top 5 scores including online status
+    // Get all scores to find player's position
+    const allScores = await fetchLeaderboard(0);
 
-    if (topScores && topScores.length > 0) {
-      let leaderboardHTML = "<strong>Top Scores:</strong><ul>"; // Start with a title and unordered list
-      topScores.forEach((entry, index) => {
-        // Sanitize username display
+    if (!allScores || allScores.length === 0) {
+      leaderboardElement.innerHTML = `<strong>Your Position:</strong><ul><li>No scores yet.</li></ul>`;
+      return;
+    }
+
+    // Sort scores in descending order (highest first)
+    allScores.sort((a, b) => b.score - a.score);
+
+    // Find the user's entry in the leaderboard
+    const userEntry = allScores.find(
+      (entry) => entry.username.toLowerCase() === currentUsername.toLowerCase()
+    );
+
+    // Find user's position in the leaderboard
+    const userPosition = userEntry
+      ? allScores.findIndex(
+          (entry) =>
+            entry.username.toLowerCase() === currentUsername.toLowerCase()
+        )
+      : -1;
+
+    // If user not found in leaderboard, show top 5 scores
+    if (userPosition === -1) {
+      const displayScores = allScores.slice(0, 5);
+
+      let leaderboardHTML = `<strong>Top 5 Scores:</strong><ul>`;
+
+      displayScores.forEach((entry, index) => {
         const safeUsername = entry.username
           .replace(/</g, "&lt;")
           .replace(/>/g, "&gt;");
 
-        // Add online status indicator
         const onlineIndicator = entry.is_online
           ? '<span class="online-indicator" aria-label="Online"></span>'
-          : '<span class="offline-indicator" aria-label="Offline"></span>'; // Use a different class or style for offline if needed
+          : '<span class="offline-indicator" aria-label="Offline"></span>';
 
         leaderboardHTML += `<li>${onlineIndicator} ${
           index + 1
         }. ${safeUsername} - ${entry.score}</li>`;
       });
-      leaderboardHTML += "</ul>"; // Close the list
+
+      leaderboardHTML += "</ul>";
       leaderboardElement.innerHTML = leaderboardHTML;
-    } else {
-      leaderboardElement.innerHTML = "<ul><li>No high scores yet.</li></ul>";
+      return;
     }
+
+    // Determine which scores to display (2 above, user, 2 below)
+    const startIndex = Math.max(0, userPosition - 2);
+    const endIndex = Math.min(allScores.length, startIndex + 5);
+    const displayScores = allScores.slice(startIndex, endIndex);
+
+    // Build the HTML
+    let leaderboardHTML = `<strong>Your Position:</strong><ul>`;
+
+    displayScores.forEach((entry, index) => {
+      const actualPosition = startIndex + index + 1; // 1-based position
+      const safeUsername = entry.username
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+      const onlineIndicator = entry.is_online
+        ? '<span class="online-indicator" aria-label="Online"></span>'
+        : '<span class="offline-indicator" aria-label="Offline"></span>';
+
+      // Highlight the user's position
+      const isUserEntry =
+        entry.username.toLowerCase() === currentUsername.toLowerCase();
+      const positionClass = isUserEntry ? 'class="player-position"' : "";
+
+      leaderboardHTML += `<li ${positionClass}>${onlineIndicator} ${actualPosition}. ${safeUsername} - ${entry.score}</li>`;
+    });
+
+    leaderboardHTML += "</ul>";
+    leaderboardElement.innerHTML = leaderboardHTML;
   } catch (error) {
-    console.error("Failed to update leaderboard:", error);
-    leaderboardElement.innerHTML = "<ul><li>Error loading scores.</li></ul>";
+    console.error("Failed to update contextual leaderboard:", error);
+    leaderboardElement.innerHTML = `<strong>Your Position:</strong><ul><li>Error loading.</li></ul>`;
   }
 };
 // --- End Leaderboard Update Function ---
@@ -118,18 +233,21 @@ const handleStartGame = async () => {
       `Audio State Before Play Attempt: muted=${backgroundMusic.muted}, paused=${backgroundMusic.paused}, readyState=${backgroundMusic.readyState}, src=${backgroundMusic.currentSrc}`
     );
 
+    // Check if NOT muted *before* attempting play
     if (!backgroundMusic.muted) {
+      console.log("Audio is not muted. Proceeding with play attempt."); // Added log
       try {
-        // Check if already playing
-        if (!backgroundMusic.paused) {
-          console.log("Background music is already playing.");
-        }
         // Check if ready to play (or potentially ready soon)
-        else if (backgroundMusic.readyState >= 3) {
-          // HAVE_FUTURE_DATA or HAVE_ENOUGH_DATA
-          console.log("Attempting to play background music...");
+        // HAVE_METADATA (1) might be enough sometimes, but HAVE_FUTURE_DATA (3) is safer
+        if (backgroundMusic.readyState >= 1) {
+          console.log(
+            `Attempting to play background music (readyState: ${backgroundMusic.readyState})...`
+          );
+          // The play() method returns a Promise
           await backgroundMusic.play();
-          console.log("Background music playback initiated successfully.");
+          console.log(
+            "Background music playback initiated successfully (Promise resolved)."
+          );
         } else {
           console.warn(
             `Background music not ready (readyState: ${backgroundMusic.readyState}). Adding 'canplaythrough' listener as fallback.`
@@ -167,9 +285,9 @@ const handleStartGame = async () => {
             "error",
             (e) => {
               console.error(
-                "Audio element error event:",
+                "Audio element reported an error event:", // More specific log
                 e,
-                backgroundMusic.error
+                backgroundMusic.error // Log the error object associated with the element
               );
             },
             { once: true }
@@ -177,18 +295,15 @@ const handleStartGame = async () => {
         }
       } catch (error) {
         console.error(
-          "Audio play() promise failed. This often indicates browser restrictions or file issues.",
+          "Audio play() promise was rejected. This often indicates browser restrictions, file issues, or the element not being ready.",
           error // Log the specific error object
         );
-        // Update UI to reflect failure
+        // Update UI to reflect failure - maybe the mute button state is wrong?
         if (!backgroundMusic.muted) {
-          muteButton.textContent = "Unmute";
-          muteButton.setAttribute(
-            "aria-label",
-            "Unmute Background Music (Playback Failed)"
+          // Consider if UI update is needed here. The existing mute button logic seems okay.
+          console.warn(
+            "Playback failed, but audio wasn't muted. Check browser console for details."
           );
-          // Don't automatically mute, let user decide, but reflect state
-          // localStorage.setItem(MUTE_STORAGE_KEY, "true");
         }
       }
     } else {
@@ -203,10 +318,10 @@ const handleStartGame = async () => {
   currentUsername = username;
   localStorage.setItem(USERNAME_STORAGE_KEY, currentUsername); // Save username
 
-  // Set user online status to true
+  // Set user online status to true and update leaderboard (shows top 5 initially)
   try {
     await updateUserOnlineStatus(currentUsername, true);
-    await updateLeaderboard();
+    await updateLeaderboard(); // Initial update uses default limit (5)
   } catch (error) {
     console.error("Failed to set user online status before game start:", error);
   }
@@ -221,15 +336,15 @@ const handleStartGame = async () => {
 
   elements.usernameOverlay.style.display = "none";
   elements.gameUiElement.style.display = "block";
-  elements.currentUsernameElement.textContent = `User: ${currentUsername}`;
+  elements.currentUsernameElement.textContent = `${currentUsername}`;
 
   // Dispose previous game if exists
   if (currentGame) {
     currentGame.dispose();
   }
 
-  // Create and start a new game instance
-  currentGame = new Game(currentUsername, userHighScore, updateLeaderboard);
+  // Create and start a new game instance, passing the leaderboard update function
+  currentGame = new Game(currentUsername, userHighScore, updateLeaderboard); // Pass the function
 };
 
 // --- Event Listeners ---
@@ -302,11 +417,12 @@ if (backgroundMusic && muteButton) {
 
 // --- Initial Leaderboard Load & Subscription ---
 console.log("index.js: Performing initial leaderboard load...");
-updateLeaderboard(); // Load the leaderboard initially
+updateLeaderboard(); // Load the top 5 leaderboard initially
 
 console.log("index.js: Subscribing to real-time leaderboard updates...");
 // Subscribe to changes and store the channel
-leaderboardChannel = subscribeToLeaderboardChanges(updateLeaderboard);
+// The callback will update using the default limit (top 5)
+leaderboardChannel = subscribeToLeaderboardChanges(() => updateLeaderboard());
 
 // --- Cleanup Subscription on Page Unload ---
 window.addEventListener("beforeunload", () => {

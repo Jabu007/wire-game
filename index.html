@@ -59,6 +59,11 @@
         display: flex; /* Use flexbox for alignment */
         align-items: center; /* Center items vertically */
       }
+      /* Add this new rule */
+      #leaderboard.leaderboard-show-all {
+        max-height: none; /* Remove height limit */
+        overflow-y: visible; /* Remove scrollbar */
+      }
       .online-indicator {
         display: inline-block;
         width: 8px;
@@ -240,6 +245,13 @@
         } /* Fade out */
       }
       /* --- End High Score Message Style --- */
+
+      /* Add this to the existing styles in index.html */
+      .player-position {
+        color: #00ff00; /* Bright green */
+        font-weight: bold;
+        text-shadow: 0 0 2px #00ff00; /* Subtle glow */
+      }
     </style>
   </head>
   <body>
@@ -271,9 +283,9 @@
           <li>Loading scores...</li>
         </ul>
       </div>
-      <div id="currentUsername">User: -</div>
+      <div id="currentUsername"></div>
       <!-- Add the Mute Button -->
-      <button id="muteButton" aria-label="Mute Background Music">Mute</button>
+      <!-- <button id="muteButton" aria-label="Mute Background Music">Mute</button> -->
       <!-- End Mute Button -->
       <!-- Add the High Score Message Element -->
       <div id="highScoreMessage">New High Score!</div>
@@ -293,12 +305,7 @@
     <!-- Canvas will be added here by Three.js -->
 
     <!-- Add the Audio Element (outside UI, but controlled by JS) -->
-    <audio
-      id="backgroundMusic"
-      src="/Hyper - Spoiler Cyberpunk 2077 OST.mp3"
-      loop
-      preload="auto"
-    ></audio>
+    <!-- <audio id="backgroundMusic" src="/music.mp3" loop preload="auto"></audio> -->
 
     <!-- Update Main game script path -->
     <script type="module" src="/src/index.js"></script>

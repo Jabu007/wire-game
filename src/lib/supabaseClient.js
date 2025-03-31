@@ -159,8 +159,12 @@ export const saveHighScore = async (username, score) => {
   }
 };
 
-// Function to fetch top N high scores for the leaderboard
-export const fetchLeaderboard = async (limit = 10) => {
+/**
+ * Fetches leaderboard scores from Supabase.
+ * @param {number | null} [limit=null] - The maximum number of scores to fetch. Fetches all if null or 0.
+ * @returns {Promise<Array<{username: string, score: number, is_online: boolean}>>} A promise that resolves to an array of score objects.
+ */
+export const fetchLeaderboard = async (limit = null) => {
   // Ensure configuration is set
   if (
     supabaseUrl === "YOUR_SUPABASE_URL" ||
@@ -171,19 +175,27 @@ export const fetchLeaderboard = async (limit = 10) => {
   }
 
   try {
-    console.log(`Fetching top ${limit} leaderboard scores...`);
-    const { data, error } = await supabase
+    const queryDesc = limit && limit > 0 ? `top ${limit}` : "all";
+    console.log(`Fetching ${queryDesc} leaderboard scores...`);
+
+    let query = supabase
       .from("high_scores")
-      .select("username, score, is_online") // Select needed columns, including is_online
-      .order("score", { ascending: false }) // Order by score descending
-      .limit(limit); // Limit the number of results
+      .select("username, score, is_online") // Select necessary columns
+      .order("score", { ascending: false }); // Order by score descending
+
+    // Apply limit only if it's a positive number
+    if (limit && limit > 0) {
+      query = query.limit(limit);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
-      console.error("Error fetching leaderboard scores:", error);
+      console.error("Error fetching leaderboard:", error);
       return []; // Return empty array on error
     }
 
-    console.log("Leaderboard scores fetched successfully:", data);
+    console.log("Leaderboard fetched successfully:", data);
     return data || []; // Return data or empty array if data is null
   } catch (error) {
     console.error(
